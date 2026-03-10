@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from "react";
 import { Plus, Send, AlertCircle, CheckCircle2, Clock, MoreVertical, LayoutGrid, List, Search, Bell } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
