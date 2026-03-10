@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Send, AlertCircle, CheckCircle2, Clock, MoreVertical, LayoutGrid, List, Search, Bell } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { apiFetch } from "@/lib/api";
 
 interface Campaign {
     id: string;
@@ -30,11 +31,16 @@ interface CampaignData {
 export default function CampaignsPage() {
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [loading, setLoading] = useState(true);
+    
+    const totalSent = campaigns.reduce((acc, camp) => acc + camp.sent, 0);
+    const totalContacts = campaigns.reduce((acc, camp) => acc + camp.total, 0);
+    const deliveryRate = totalContacts > 0 ? (totalSent / totalContacts) * 100 : 0;
+    const activeCampaigns = campaigns.filter(c => c.status === 'processing').length;
 
     useEffect(() => {
         async function fetchCampaigns() {
             try {
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/campaigns`);
+                const res = await apiFetch('/campaigns');
                 if (!res.ok) throw new Error('Falha ao buscar campanhas');
                 const data = await res.json();
                 
@@ -103,16 +109,14 @@ export default function CampaignsPage() {
                         </Link>
                     </div>
                 </header>
-
                 <section className="p-10 max-w-[1600px] mx-auto">
-                    {/* Stats Overview */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-                        {[
-                            { label: "Total de Envio", value: "97.4K", change: "+12%", color: "blue" },
-                            { label: "Taxa de Entrega", value: "98.2%", change: "+0.5%", color: "green" },
-                            { label: "Conversão (Kanban)", value: "14.5%", change: "+2%", color: "purple" },
-                            { label: "Campanhas Ativas", value: "3", sub: "Atualmente", color: "orange" },
-                        ].map((stat, i) => (
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+                            {[
+                                { label: "Total de Envio", value: totalSent > 1000 ? `${(totalSent/1000).toFixed(1)}K` : totalSent.toString(), change: "", color: "blue" },
+                                { label: "Taxa de Entrega", value: `${deliveryRate.toFixed(1)}%`, change: "", color: "green" },
+                                { label: "Contatos Totais", value: totalContacts.toString(), change: "", color: "purple" },
+                                { label: "Campanhas Ativas", value: activeCampaigns.toString(), sub: "Atualmente", color: "orange" },
+                            ].map((stat, i) => (
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
                                 key={i} className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-white/5 p-6 rounded-3xl shadow-sm hover:border-gray-300 dark:hover:border-white/10 transition-colors"

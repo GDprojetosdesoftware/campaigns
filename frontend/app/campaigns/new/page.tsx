@@ -5,6 +5,7 @@ import { ArrowLeft, Send, Users, MessageSquare, Settings, CheckCircle2, ChevronR
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api";
 
 export default function NewCampaignPage() {
     const [step, setStep] = useState(1);
@@ -26,7 +27,7 @@ export default function NewCampaignPage() {
         const fetchInboxes = async () => {
             setIsLoadingInboxes(true);
             try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/campaigns/inboxes`);
+                const response = await apiFetch('/campaigns/inboxes');
                 if (response.ok) {
                     const data = await response.json();
                     setInboxes(data);
@@ -41,7 +42,7 @@ export default function NewCampaignPage() {
         const fetchInstances = async () => {
             setIsLoadingInstances(true);
             try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/campaigns/instances`);
+                const response = await apiFetch('/campaigns/instances');
                 if (response.ok) {
                     const data = await response.json();
                     setInstances(data);
@@ -60,11 +61,8 @@ export default function NewCampaignPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/campaigns`, {
+            const response = await apiFetch('/campaigns', {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
                 body: JSON.stringify({
                     name: formData.name,
                     message: formData.message,
