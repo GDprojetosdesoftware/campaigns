@@ -5,8 +5,30 @@ import { Plus, Send, AlertCircle, CheckCircle2, Clock, MoreVertical, LayoutGrid,
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
+interface Campaign {
+    id: string;
+    name: string;
+    status: 'completed' | 'processing' | 'pending' | 'failed';
+    total: number;
+    sent: number;
+    error: number;
+    date: string;
+    type: string;
+}
+
+interface CampaignData {
+    id: string;
+    name: string;
+    status: 'completed' | 'processing' | 'pending' | 'failed';
+    totalContacts?: number;
+    sentSuccess?: number;
+    sentError?: number;
+    createdAt: string;
+    evolutionInstance: string;
+}
+
 export default function CampaignsPage() {
-    const [campaigns, setCampaigns] = useState([]);
+    const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -16,7 +38,7 @@ export default function CampaignsPage() {
                 if (!res.ok) throw new Error('Falha ao buscar campanhas');
                 const data = await res.json();
                 
-                const formattedCampaigns = data.map((camp: any) => ({
+                const formattedCampaigns: Campaign[] = data.map((camp: CampaignData) => ({
                     id: camp.id,
                     name: camp.name,
                     status: camp.status,
@@ -186,13 +208,13 @@ export default function CampaignsPage() {
     );
 }
 
-function StatusIcon({ status }) {
+function StatusIcon({ status }: { status: Campaign['status'] }) {
     if (status === 'completed') return <CheckCircle2 size={14} className="text-green-500" />;
     if (status === 'processing') return <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent animate-spin rounded-full" />;
     return <Clock size={14} className="text-yellow-500" />;
 }
 
-function StatusBadge({ status }) {
+function StatusBadge({ status }: { status: Campaign['status'] }) {
     const configs = {
         completed: { color: "text-green-500 bg-green-500/5", label: "Finalizado" },
         processing: { color: "text-blue-500 bg-blue-500/5", label: "Em disparo" },

@@ -1,20 +1,20 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+    const router = useRouter();
+
+    useEffect(() => {
+        router.push("/campaigns");
+    }, [router]);
+
     return (
-        <main className="flex min-h-screen flex-col items-center justify-between p-24">
-            <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-                <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-zinc-200 pb-6 pt-8 backdrop-blur-2xl lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4">
-                    Chatwoot Campaign Manager
-                </p>
-            </div>
-
-            <div className="relative flex place-items-center">
-                <h1 className="text-4xl font-bold">Dashboard de Campanhas</h1>
-            </div>
-
-            <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-                <p>Pronto para iniciar seus disparos proativos.</p>
+        <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-black text-white">
+            <div className="flex flex-col items-center gap-4">
+                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent animate-spin rounded-full"></div>
+                <p className="text-gray-400 font-medium tracking-widest uppercase text-xs">Redirecionando para o Dashboard...</p>
             </div>
         </main>
     );

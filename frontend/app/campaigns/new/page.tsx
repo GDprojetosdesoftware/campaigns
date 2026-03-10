@@ -18,11 +18,33 @@ export default function NewCampaignPage() {
 
     const router = useRouter();
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log("Submitting campaign:", formData);
-        alert("Campanha criada com sucesso! Redirecionando para o Dashboard.");
-        router.push("/campaigns");
+        try {
+            const response = await fetch("http://localhost:3000/campaigns", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    name: formData.name,
+                    message: formData.message,
+                    tags: formData.tags.split(",").map(t => t.trim()),
+                    inboxId: parseInt(formData.inboxId),
+                    instance: formData.instance
+                }),
+            });
+
+            if (response.ok) {
+                alert("Campanha criada com sucesso! Redirecionando para o Dashboard.");
+                router.push("/campaigns");
+            } else {
+                alert("Erro ao criar campanha. Verifique os dados.");
+            }
+        } catch (error) {
+            console.error("Error submitting campaign:", error);
+            alert("Erro de conexão com o servidor.");
+        }
     };
 
     const nextStep = () => setStep(step + 1);
