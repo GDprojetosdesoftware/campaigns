@@ -1,27 +1,23 @@
 "use client";
 
+import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 
 export function ThemeToggle() {
-    const [isDark, setIsDark] = useState(true);
+    const { theme, setTheme } = useTheme();
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        // Por padrão o sistema foi feito em dark mode, então forçamos dark no início
-        const hasDarkClass = document.documentElement.classList.contains("dark");
-        if (!hasDarkClass) {
-            document.documentElement.classList.add("dark");
-        }
+        setMounted(true);
     }, []);
 
+    if (!mounted) return null;
+
+    const isDark = theme === "dark";
+
     const toggle = () => {
-        if (isDark) {
-            document.documentElement.classList.remove("dark");
-            setIsDark(false);
-        } else {
-            document.documentElement.classList.add("dark");
-            setIsDark(true);
-        }
+        setTheme(isDark ? "light" : "dark");
     };
 
     return (
@@ -34,3 +30,4 @@ export function ThemeToggle() {
         </button>
     );
 }
+

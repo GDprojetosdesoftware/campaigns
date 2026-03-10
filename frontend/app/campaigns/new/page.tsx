@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ArrowLeft, Send, Users, MessageSquare, Settings, CheckCircle2, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function NewCampaignPage() {
     const [step, setStep] = useState(1);
@@ -15,11 +16,13 @@ export default function NewCampaignPage() {
         instance: "default",
     });
 
+    const router = useRouter();
+
     const handleSubmit = (e) => {
         e.preventDefault();
         console.log("Submitting campaign:", formData);
         alert("Campanha criada com sucesso! Redirecionando para o Dashboard.");
-        window.location.href = "/campaigns";
+        router.push("/campaigns");
     };
 
     const nextStep = () => setStep(step + 1);

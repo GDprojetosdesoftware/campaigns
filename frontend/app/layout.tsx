@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 };
 
 import { ThemeToggle } from "../components/ThemeToggle";
+import { ThemeProvider } from "../components/ThemeProvider";
 
 export default function RootLayout({
     children,
@@ -17,10 +18,12 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="pt-br" className="dark">
+        <html lang="pt-br" suppressHydrationWarning>
             <body className={inter.className}>
-                {children}
-                <ThemeToggle />
+                <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+                    {children}
+                    <ThemeToggle />
+                </ThemeProvider>
             </body>
         </html>
     );

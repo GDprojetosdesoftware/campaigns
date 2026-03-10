@@ -5,3 +5,4 @@ dist
 *.log
 docker-compose.override.yml
 Guia Técnico_ Campanhas de Transmissão de Mensagens no Chatwoot
+SCRIPT_CHATWOOT.txt
