@@ -10,15 +10,34 @@ export default function CampaignsPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const mockCampaigns = [
-            { id: 1, name: "Reativação de Leads de Maio", status: "completed", total: 1240, sent: 1240, error: 0, date: "Hoje, 10:45", type: "WhatsApp Broadcast" },
-            { id: 2, name: "Promoção Relâmpago 48h", status: "processing", total: 8500, sent: 4210, error: 12, date: "Em andamento...", type: "Promoção" },
-            { id: 3, name: "Aviso de Manutenção", status: "pending", total: 320, sent: 0, error: 0, date: "Agendado: Amanhã", type: "Informativo" },
-        ];
-        setTimeout(() => {
-            setCampaigns(mockCampaigns);
-            setLoading(false);
-        }, 800);
+        async function fetchCampaigns() {
+            try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/campaigns`);
+                if (!res.ok) throw new Error('Falha ao buscar campanhas');
+                const data = await res.json();
+                
+                const formattedCampaigns = data.map((camp: any) => ({
+                    id: camp.id,
+                    name: camp.name,
+                    status: camp.status,
+                    total: camp.totalContacts || 0,
+                    sent: camp.sentSuccess || 0,
+                    error: camp.sentError || 0,
+                    date: new Date(camp.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+                    type: camp.evolutionInstance === 'default' ? 'Broadcast' : camp.evolutionInstance
+                }));
+                
+                setCampaigns(formattedCampaigns);
+            } catch (err) {
+                console.error(err);
+                // Fallback opcional ou estado de erro
+                setCampaigns([]);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchCampaigns();
     }, []);
 
     return (
