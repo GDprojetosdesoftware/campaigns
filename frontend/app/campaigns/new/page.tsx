@@ -16,7 +16,27 @@ export default function NewCampaignPage() {
         instance: "default",
     });
 
+    const [inboxes, setInboxes] = useState<any[]>([]);
+    const [isLoadingInboxes, setIsLoadingInboxes] = useState(false);
     const router = useRouter();
+
+    React.useEffect(() => {
+        const fetchInboxes = async () => {
+            setIsLoadingInboxes(true);
+            try {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/campaigns/inboxes`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setInboxes(data);
+                }
+            } catch (error) {
+                console.error("Error fetching inboxes:", error);
+            } finally {
+                setIsLoadingInboxes(false);
+            }
+        };
+        fetchInboxes();
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -149,16 +169,28 @@ export default function NewCampaignPage() {
                                         />
                                     </div>
                                     <div className="group">
-                                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-widest pl-1 mb-2 block">ID da Caixa de Entrada (Chatwoot)</label>
-                                        <input
-                                            type="number"
-                                            required
-                                            placeholder="Ex: 56"
-                                            className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-2xl px-6 py-4 text-lg focus:border-green-500/50 focus:ring-4 focus:ring-green-500/5 outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                                            value={formData.inboxId}
-                                            onChange={(e) => setFormData({ ...formData, inboxId: e.target.value })}
-                                        />
-                                        <p className="text-[9px] text-gray-500 mt-3 font-bold uppercase tracking-wider pl-1">O ID do Inbox onde as novas conversas serão iniciadas.</p>
+                                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-widest pl-1 mb-2 block">Caixa de Entrada (Chatwoot)</label>
+                                        <div className="relative">
+                                            <select
+                                                required
+                                                className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-2xl px-6 py-4 text-lg focus:border-green-500/50 outline-none transition-all appearance-none cursor-pointer"
+                                                value={formData.inboxId}
+                                                onChange={(e) => setFormData({ ...formData, inboxId: e.target.value })}
+                                            >
+                                                <option value="">Selecione uma caixa de entrada...</option>
+                                                {isLoadingInboxes ? (
+                                                    <option disabled>Carregando caixas de entrada...</option>
+                                                ) : (
+                                                    inboxes.map((inbox) => (
+                                                        <option key={inbox.id} value={inbox.id}>
+                                                            {inbox.name} ({inbox.channel_type})
+                                                        </option>
+                                                    ))
+                                                )}
+                                            </select>
+                                            <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-gray-400 pointer-events-none" size={20} />
+                                        </div>
+                                        <p className="text-[9px] text-gray-500 mt-3 font-bold uppercase tracking-wider pl-1">As conversas serão iniciadas através desta caixa de entrada.</p>
                                     </div>
                                 </div>
                             </div>

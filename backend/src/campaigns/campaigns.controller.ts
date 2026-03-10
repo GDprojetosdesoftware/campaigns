@@ -10,6 +10,11 @@ export class CampaignsController {
     return this.campaignsService.create(createCampaignDto);
   }
 
+  @Get('inboxes')
+  getInboxes() {
+    return this.campaignsService.getInboxes();
+  }
+
   @Get()
   findAll() {
     return this.campaignsService.findAll();

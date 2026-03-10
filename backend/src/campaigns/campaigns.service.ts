@@ -80,4 +80,12 @@ export class CampaignsService {
   async findOne(id: number) {
     return this.campaignRepository.findOneBy({ id });
   }
+
+  async getInboxes() {
+    const accountId = this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
+    if (!accountId) {
+      throw new Error('CHATWOOT_ACCOUNT_ID is required');
+    }
+    return this.chatwootService.getInboxes(Number(accountId));
+  }
 }

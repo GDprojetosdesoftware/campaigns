@@ -58,13 +58,25 @@ export class ChatwootService {
     try {
       this.logger.log(`Updating Kanban status for conversation ${conversationId} to ${statusLabel}`);
       
-      // No Chatwoot, o Kanban customizado geralmente é baseado em Labels na Conversa
       await this.httpClient.post(
         `/api/v1/accounts/${accountId}/conversations/${conversationId}/labels`,
         { labels: [statusLabel] },
       );
     } catch (error) {
       this.logger.error(`Error updating Kanban status: ${error.message}`);
+    }
+  }
+
+  async getInboxes(accountId: number) {
+    try {
+      this.logger.log(`Fetching inboxes for account ${accountId}`);
+      const response = await this.httpClient.get(
+        `/api/v1/accounts/${accountId}/inboxes`,
+      );
+      return response.data.payload;
+    } catch (error) {
+      this.logger.error(`Error fetching inboxes: ${error.message}`);
+      throw error;
     }
   }
 }
