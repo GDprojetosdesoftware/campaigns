@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { ArrowLeft, Send, Users, MessageSquare, Settings, CheckCircle2, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -18,7 +18,7 @@ export default function NewCampaignPage() {
 
     const router = useRouter();
 
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         console.log("Submitting campaign:", formData);
         alert("Campanha criada com sucesso! Redirecionando para o Dashboard.");
