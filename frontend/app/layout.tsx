@@ -9,21 +9,15 @@ export const metadata: Metadata = {
     description: "Gerencie suas campanhas de transmissão de forma eficiente",
 };
 
-import { ThemeToggle } from "../components/ThemeToggle";
-import { ThemeProvider } from "../components/ThemeProvider";
-
 export default function RootLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="pt-br" suppressHydrationWarning>
+        <html lang="pt-br">
             <body className={inter.className}>
-                <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-                    {children}
-                    <ThemeToggle />
-                </ThemeProvider>
+                {children}
             </body>
         </html>
     );

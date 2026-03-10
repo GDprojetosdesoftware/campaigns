@@ -29,11 +29,11 @@ export default function NewCampaignPage() {
     const prevStep = () => setStep(step - 1);
 
     return (
-        <div className="min-h-screen bg-[#09090b] text-white font-sans selection:bg-blue-500/30 pb-20">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 font-sans selection:bg-blue-500/30 pb-20 transition-colors duration-500">
             <div className="max-w-3xl mx-auto px-6 py-12">
                 <header className="mb-12 flex items-center justify-between">
                     <div className="flex items-center gap-6">
-                        <Link href="/campaigns" className="w-12 h-12 bg-white/5 hover:bg-white/10 rounded-2xl flex items-center justify-center transition-all group overflow-hidden border border-white/5">
+                        <Link href="/campaigns" className="w-12 h-12 bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-2xl flex items-center justify-center transition-all group overflow-hidden border border-gray-200 dark:border-gray-800">
                             <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
                         </Link>
                         <div>
@@ -56,12 +56,12 @@ export default function NewCampaignPage() {
                     {/* Step 1: Geral */}
                     {step === 1 && (
                         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
-                            <div className="bg-[#121214] border border-white/5 rounded-[2.5rem] p-10 shadow-2xl">
+                            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2.5rem] p-10 shadow-lg">
                                 <div className="mb-8">
-                                    <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-4 border border-blue-500/20">
-                                        <Settings className="text-blue-500" size={24} />
+                                    <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center mb-4 border border-blue-100">
+                                        <Settings className="text-blue-600" size={24} />
                                     </div>
-                                    <h2 className="text-xl font-bold">Identificação</h2>
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Identificação</h2>
                                     <p className="text-gray-500 text-sm mt-1">Como essa campanha será identificada nos relatórios.</p>
                                 </div>
 
@@ -73,7 +73,7 @@ export default function NewCampaignPage() {
                                             required
                                             autoFocus
                                             placeholder="Ex: Vendas High Ticket - Junho"
-                                            className="w-full bg-[#09090b] border border-white/10 rounded-2xl px-6 py-4 text-lg focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all placeholder:text-gray-800"
+                                            className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-2xl px-6 py-4 text-lg focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
                                             value={formData.name}
                                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         />
@@ -82,7 +82,7 @@ export default function NewCampaignPage() {
                                         <label className="text-[10px] uppercase font-bold text-gray-500 tracking-widest pl-1 mb-2 block">Instância Evolution (WhatsApp)</label>
                                         <div className="relative">
                                             <select
-                                                className="w-full bg-[#09090b] border border-white/10 rounded-2xl px-6 py-4 text-lg focus:border-blue-500/50 outline-none transition-all appearance-none cursor-pointer"
+                                                className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-2xl px-6 py-4 text-lg focus:border-blue-500/50 outline-none transition-all appearance-none cursor-pointer"
                                                 value={formData.instance}
                                                 onChange={(e) => setFormData({ ...formData, instance: e.target.value })}
                                             >
@@ -90,13 +90,13 @@ export default function NewCampaignPage() {
                                                 <option value="atendimento">Departamento de Atendimento</option>
                                                 <option value="vendas">Time de SDR / Vendas</option>
                                             </select>
-                                            <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-gray-600 pointer-events-none" size={20} />
+                                            <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-gray-400 pointer-events-none" size={20} />
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             <div className="flex justify-end pt-4">
-                                <button type="button" onClick={nextStep} className="bg-white text-black px-10 py-4 rounded-full font-bold shadow-xl hover:bg-gray-200 transition-all flex items-center gap-2">
+                                <button type="button" onClick={nextStep} className="bg-gray-900 text-white px-10 py-4 rounded-full font-bold shadow-xl hover:bg-gray-800 transition-all flex items-center gap-2">
                                     Próximo Passo <ChevronRight size={18} />
                                 </button>
                             </div>
@@ -106,12 +106,12 @@ export default function NewCampaignPage() {
                     {/* Step 2: Público */}
                     {step === 2 && (
                         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
-                            <div className="bg-[#121214] border border-white/5 rounded-[2.5rem] p-10 shadow-2xl">
+                            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2.5rem] p-10 shadow-lg">
                                 <div className="mb-8">
-                                    <div className="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center mb-4 border border-green-500/20">
-                                        <Users className="text-green-500" size={24} />
+                                    <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center mb-4 border border-green-100">
+                                        <Users className="text-green-600" size={24} />
                                     </div>
-                                    <h2 className="text-xl font-bold">Filtro de Audiência</h2>
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Filtro de Audiência</h2>
                                     <p className="text-gray-500 text-sm mt-1">Conectado em tempo real com seu Chatwoot.</p>
                                 </div>
 
@@ -121,7 +121,7 @@ export default function NewCampaignPage() {
                                         <input
                                             type="text"
                                             placeholder="Ex: vip, hot_lead, lead_frio"
-                                            className="w-full bg-[#09090b] border border-white/10 rounded-2xl px-6 py-4 text-lg focus:border-green-500/50 focus:ring-4 focus:ring-green-500/5 outline-none transition-all placeholder:text-gray-800"
+                                            className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-2xl px-6 py-4 text-lg focus:border-green-500/50 focus:ring-4 focus:ring-green-500/5 outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
                                             value={formData.tags}
                                             onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
                                         />
@@ -132,19 +132,19 @@ export default function NewCampaignPage() {
                                             type="number"
                                             required
                                             placeholder="Ex: 56"
-                                            className="w-full bg-[#09090b] border border-white/10 rounded-2xl px-6 py-4 text-lg focus:border-green-500/50 focus:ring-4 focus:ring-green-500/5 outline-none transition-all placeholder:text-gray-800"
+                                            className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-2xl px-6 py-4 text-lg focus:border-green-500/50 focus:ring-4 focus:ring-green-500/5 outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
                                             value={formData.inboxId}
                                             onChange={(e) => setFormData({ ...formData, inboxId: e.target.value })}
                                         />
-                                        <p className="text-[9px] text-gray-600 mt-3 font-bold uppercase tracking-wider pl-1">O ID do Inbox onde as novas conversas serão iniciadas.</p>
+                                        <p className="text-[9px] text-gray-500 mt-3 font-bold uppercase tracking-wider pl-1">O ID do Inbox onde as novas conversas serão iniciadas.</p>
                                     </div>
                                 </div>
                             </div>
                             <div className="flex justify-between pt-4">
-                                <button type="button" onClick={prevStep} className="bg-white/5 text-white border border-white/10 px-8 py-4 rounded-full font-bold hover:bg-white/10 transition-all">
+                                <button type="button" onClick={prevStep} className="bg-gray-100 text-gray-700 border border-gray-200 px-8 py-4 rounded-full font-bold hover:bg-gray-200 transition-all">
                                     Voltar
                                 </button>
-                                <button type="button" onClick={nextStep} className="bg-white text-black px-10 py-4 rounded-full font-bold shadow-xl hover:bg-gray-200 transition-all flex items-center gap-2">
+                                <button type="button" onClick={nextStep} className="bg-gray-900 text-white px-10 py-4 rounded-full font-bold shadow-xl hover:bg-gray-800 transition-all flex items-center gap-2">
                                     Configurar Mensagem <ChevronRight size={18} />
                                 </button>
                             </div>
@@ -154,12 +154,12 @@ export default function NewCampaignPage() {
                     {/* Step 3: Mensagem */}
                     {step === 3 && (
                         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
-                            <div className="bg-[#121214] border border-white/5 rounded-[2.5rem] p-10 shadow-2xl">
+                            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2.5rem] p-10 shadow-lg">
                                 <div className="mb-8">
-                                    <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center mb-4 border border-purple-500/20">
-                                        <MessageSquare className="text-purple-500" size={24} />
+                                    <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center mb-4 border border-purple-100">
+                                        <MessageSquare className="text-purple-600" size={24} />
                                     </div>
-                                    <h2 className="text-xl font-bold">Conteúdo do Disparo</h2>
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Conteúdo do Disparo</h2>
                                     <p className="text-gray-500 text-sm mt-1">Escreva a mensagem que seus clientes receberão.</p>
                                 </div>
 
@@ -170,19 +170,19 @@ export default function NewCampaignPage() {
                                             rows={8}
                                             autoFocus
                                             placeholder="Olá {{name}}, temos uma oferta especial..."
-                                            className="w-full bg-[#09090b] border border-white/10 rounded-[2rem] p-8 text-lg focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/5 outline-none transition-all resize-none shadow-inner"
+                                            className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-[2rem] p-8 text-lg focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/5 outline-none transition-all resize-none shadow-inner placeholder:text-gray-400 dark:placeholder:text-gray-500"
                                             value={formData.message}
                                             onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                                         />
                                         <div className="mt-4 flex gap-2 justify-end">
-                                            <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-[10px] text-gray-500 font-bold uppercase hover:text-white cursor-help">Variáveis: {'{{name}}'}</span>
-                                            <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-[10px] text-gray-500 font-bold uppercase hover:text-white cursor-help">Spinning syntax support</span>
+                                            <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-md text-[10px] text-gray-500 font-bold uppercase hover:bg-gray-200 cursor-help">Variáveis: {'{{name}}'}</span>
+                                            <span className="px-3 py-1 bg-gray-100 border border-gray-200 rounded-md text-[10px] text-gray-500 font-bold uppercase hover:bg-gray-200 cursor-help">Spinning syntax support</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             <div className="flex justify-between pt-4">
-                                <button type="button" onClick={prevStep} className="bg-white/5 text-white border border-white/10 px-8 py-4 rounded-full font-bold hover:bg-white/10 transition-all">
+                                <button type="button" onClick={prevStep} className="bg-gray-100 text-gray-700 border border-gray-200 px-8 py-4 rounded-full font-bold hover:bg-gray-200 transition-all">
                                     Voltar
                                 </button>
                                 <button type="submit" className="bg-blue-600 text-white px-12 py-4 rounded-full font-black shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:bg-blue-500 transition-all flex items-center gap-3">

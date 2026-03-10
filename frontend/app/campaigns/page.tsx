@@ -127,7 +127,7 @@ export default function CampaignsPage() {
                                                 <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-500 mb-1 block">
                                                     {camp.type}
                                                 </span>
-                                                <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{camp.name}</h3>
+                                                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{camp.name}</h3>
                                             </div>
                                             <button className="p-2 text-gray-400 dark:text-gray-600 hover:text-black dark:hover:text-white transition-colors">
                                                 <MoreVertical size={20} />
@@ -153,7 +153,7 @@ export default function CampaignsPage() {
                                             <div className="flex gap-10">
                                                 <div>
                                                     <p className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-0.5">Total</p>
-                                                    <p className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">{camp.total}</p>
+                                                    <p className="text-lg font-bold tracking-tight text-gray-900 dark:text-gray-100">{camp.total}</p>
                                                 </div>
                                                 <div>
                                                     <p className="text-[10px] uppercase font-bold tracking-wider mb-0.5 text-green-600 dark:text-green-500/70">Sucesso</p>
