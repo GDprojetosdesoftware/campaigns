@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Campaign, CampaignStatus } from './entities/campaign.entity';
@@ -14,15 +15,23 @@ export class CampaignsService {
     @InjectRepository(Campaign)
     private campaignRepository: Repository<Campaign>,
     private chatwootService: ChatwootService,
+    private configService: ConfigService,
     @InjectQueue('campaign-disparos')
     private campaignQueue: Queue,
   ) {}
 
   async create(createCampaignDto: any) {
-    const { name, message, filters, accountId, inboxId, evolutionInstance } = createCampaignDto;
+    const { name, message, filters, inboxId, evolutionInstance } = createCampaignDto;
+    
+    // Tenta pegar do DTO ou do ConfigService
+    const accountId = createCampaignDto.accountId || this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
+
+    if (!accountId) {
+      throw new Error('CHATWOOT_ACCOUNT_ID is required');
+    }
 
     // 1. Busca contatos filtrados no Chatwoot
-    const contacts = await this.chatwootService.filterContacts(accountId, filters);
+    const contacts = await this.chatwootService.filterContacts(Number(accountId), filters);
     
     // 2. Salva a campanha no banco
     const campaign = this.campaignRepository.create({

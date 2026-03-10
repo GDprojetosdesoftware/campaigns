@@ -1,7 +1,8 @@
 services:
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: ./backend/Dockerfile
     restart: always
     environment:
       - CHATWOOT_API_URL=${CHATWOOT_API_URL}
@@ -26,7 +27,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: .
+      dockerfile: ./frontend/Dockerfile
     restart: always
     ports:
       - "${FRONTEND_PORT:-3001}:3000"
@@ -41,14 +43,12 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-campanhas_db}
-    # Removido ports do db por segurança (acesso apenas interno)
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
   redis:
     image: redis:7-alpine
     restart: always
-    # Removido ports do redis por segurança
     volumes:
       - redis_data:/data
 
