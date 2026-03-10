@@ -1,0 +1,17 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and Push (Simulado)
+        run: |
+          echo "Simulando build de backend e frontend..."
+          echo "Em um cenário real, aqui usaríamos docker/build-push-action@v5"
+          echo "Para o Portainer, você pode usar o arquivo docker-compose.yml pronto na raiz."
