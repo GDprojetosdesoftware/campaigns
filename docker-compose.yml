@@ -3,8 +3,15 @@ services:
     build:
       context: ./backend
     restart: always
-    env_file:
-      - .env
+    # Removido env_file para funcionar no Portainer via UI
+    environment:
+      - CHATWOOT_API_URL=${CHATWOOT_API_URL}
+      - CHATWOOT_API_TOKEN=${CHATWOOT_API_TOKEN}
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-campanhas_db}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     ports:
       - "3000:3000"
     depends_on:
@@ -17,8 +24,8 @@ services:
     restart: always
     ports:
       - "3001:3000"
-    env_file:
-      - .env
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
   db:
     image: postgres:15-alpine
