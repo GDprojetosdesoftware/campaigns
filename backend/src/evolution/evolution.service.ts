@@ -20,6 +20,17 @@ export class EvolutionService {
     });
   }
 
+  async fetchInstances() {
+    try {
+      this.logger.log('Fetching all instances from Evolution API');
+      const response = await this.httpClient.get('/instance/fetchInstances');
+      return response.data;
+    } catch (error) {
+      this.logger.error(`Error fetching instances via Evolution: ${error.message}`);
+      throw error;
+    }
+  }
+
   async sendMessage(instanceName: string, number: string, text: string) {
     try {
       this.logger.log(`Sending message to ${number} via instance ${instanceName}`);

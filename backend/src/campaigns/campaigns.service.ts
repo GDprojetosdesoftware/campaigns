@@ -6,6 +6,7 @@ import { Campaign, CampaignStatus } from './entities/campaign.entity';
 import { ChatwootService } from '../chatwoot/chatwoot.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { EvolutionService } from '../evolution/evolution.service';
 
 @Injectable()
 export class CampaignsService {
@@ -18,6 +19,7 @@ export class CampaignsService {
     private configService: ConfigService,
     @InjectQueue('campaign-disparos')
     private campaignQueue: Queue,
+    private evolutionService: EvolutionService,
   ) {}
 
   async create(createCampaignDto: any) {
@@ -87,5 +89,9 @@ export class CampaignsService {
       throw new Error('CHATWOOT_ACCOUNT_ID is required');
     }
     return this.chatwootService.getInboxes(Number(accountId));
+  }
+
+  async getEvolutionInstances() {
+    return this.evolutionService.fetchInstances();
   }
 }

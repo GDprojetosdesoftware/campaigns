@@ -15,6 +15,11 @@ export class CampaignsController {
     return this.campaignsService.getInboxes();
   }
 
+  @Get('instances')
+  getInstances() {
+    return this.campaignsService.getEvolutionInstances();
+  }
+
   @Get()
   findAll() {
     return this.campaignsService.findAll();
