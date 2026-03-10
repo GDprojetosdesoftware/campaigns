@@ -9,14 +9,19 @@ export const metadata: Metadata = {
     description: "Gerencie suas campanhas de transmissão de forma eficiente",
 };
 
+import { ThemeToggle } from "../components/ThemeToggle";
+
 export default function RootLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="pt-br">
-            <body className={inter.className}>{children}</body>
+        <html lang="pt-br" className="dark">
+            <body className={inter.className}>
+                {children}
+                <ThemeToggle />
+            </body>
         </html>
     );
 }
