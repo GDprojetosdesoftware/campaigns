@@ -68,7 +68,7 @@ export default function NewCampaignPage() {
                 body: JSON.stringify({
                     name: formData.name,
                     message: formData.message,
-                    filters: formData.tags.split(",").map(t => t.trim()),
+                    filters: formData.tags ? formData.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
                     inboxId: parseInt(formData.inboxId),
                     evolutionInstance: formData.instance
                 }),

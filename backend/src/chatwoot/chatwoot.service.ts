@@ -20,12 +20,22 @@ export class ChatwootService {
     });
   }
 
-  async filterContacts(accountId: number, filters: any[]) {
+  async filterContacts(accountId: number, filters: string[]) {
     try {
-      this.logger.log(`Filtering contacts for account ${accountId}`);
+      this.logger.log(`Filtering contacts for account ${accountId} with tags: ${filters.join(', ')}`);
+      
+      const payload = [
+        {
+          attribute_key: 'labels',
+          filter_operator: 'equal_to',
+          values: filters,
+          query_operator: 'and'
+        }
+      ];
+
       const response = await this.httpClient.post(
         `/api/v1/accounts/${accountId}/contacts/filter`,
-        { payload: filters },
+        { payload },
       );
       return response.data.payload; // Array de contatos
     } catch (error) {

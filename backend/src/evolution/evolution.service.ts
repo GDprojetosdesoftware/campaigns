@@ -24,6 +24,20 @@ export class EvolutionService {
     try {
       this.logger.log('Fetching all instances from Evolution API');
       const response = await this.httpClient.get('/instance/fetchInstances');
+      
+      const envInstances = this.configService.get<string>('EVOLUTION_INSTANCE_NAME');
+      
+      if (envInstances && response.data && Array.isArray(response.data)) {
+        const allowedNames = envInstances.split(',').map(name => name.trim().toLowerCase());
+        
+        const filtered = response.data.filter((item: any) => {
+          const itemInstanceName = item.instance?.instanceName || item.instanceName || item.name || String(item);
+          return allowedNames.includes(itemInstanceName.toLowerCase());
+        });
+        
+        return filtered;
+      }
+      
       return response.data;
     } catch (error) {
       this.logger.error(`Error fetching instances via Evolution: ${error.message}`);
