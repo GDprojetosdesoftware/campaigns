@@ -23,7 +23,7 @@ export class CampaignsService {
   ) {}
 
   async create(createCampaignDto: any) {
-    const { name, message, filters, inboxId, evolutionInstance } = createCampaignDto;
+    const { name, message, filters = [], inboxId, evolutionInstance } = createCampaignDto;
     
     // Tenta pegar do DTO ou do ConfigService
     const accountId = createCampaignDto.accountId || this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
@@ -43,14 +43,18 @@ export class CampaignsService {
       accountId,
       inboxId,
       evolutionInstance,
-      status: CampaignStatus.PROCESSING,
+      status: contacts.length > 0 ? CampaignStatus.PROCESSING : CampaignStatus.COMPLETED,
       totalContacts: contacts.length,
     });
 
     const savedCampaign = await this.campaignRepository.save(campaign);
 
-    // 3. Adiciona na fila de disparos
-    await this.enqueueDisparos(savedCampaign.id, contacts);
+    // 3. Adiciona na fila de disparos apenas se houver contatos
+    if (contacts.length > 0) {
+      await this.enqueueDisparos(savedCampaign.id, contacts);
+    } else {
+      this.logger.warn(`No contacts found for campaign ${savedCampaign.id} with filters: ${filters.join(', ')}`);
+    }
 
     return savedCampaign;
   }

@@ -16,5 +16,16 @@ export const API_BASE_URL = getBaseUrl();
 export const apiFetch = async (endpoint: string, options?: RequestInit) => {
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
     const url = `${API_BASE_URL}/${cleanEndpoint}`;
-    return fetch(url, options);
+    
+    const defaultHeaders = {
+        'Content-Type': 'application/json',
+    };
+
+    return fetch(url, {
+        ...options,
+        headers: {
+            ...defaultHeaders,
+            ...options?.headers,
+        },
+    });
 };

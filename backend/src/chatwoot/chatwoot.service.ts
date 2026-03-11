@@ -22,6 +22,10 @@ export class ChatwootService {
 
   async filterContacts(accountId: number, filters: string[]) {
     try {
+      if (!filters || filters.length === 0) {
+        this.logger.warn(`No filters provided for account ${accountId}. Returning empty contact list.`);
+        return [];
+      }
       this.logger.log(`Filtering contacts for account ${accountId} with tags: ${filters.join(', ')}`);
       
       const payload = filters.map(tag => ({
