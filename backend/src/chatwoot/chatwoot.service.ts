@@ -28,20 +28,27 @@ export class ChatwootService {
       }
       this.logger.log(`Filtering contacts for account ${accountId} with tags: ${filters.join(', ')}`);
       
-      const payload = filters.map(tag => ({
+      const payload = filters.map((tag, index) => ({
         attribute_key: 'labels',
         filter_operator: 'equal_to',
         values: [tag],
-        query_operator: 'and'
+        query_operator: index === filters.length - 1 ? null : 'and'
       }));
 
       const response = await this.httpClient.post(
         `/api/v1/accounts/${accountId}/contacts/filter`,
         { payload },
       );
+
+      if (!response.data || !response.data.payload) {
+        this.logger.warn(`Chatwoot returned no payload for account ${accountId}. Response: ${JSON.stringify(response.data)}`);
+        return [];
+      }
+
       return response.data.payload; // Array de contatos
     } catch (error) {
-      this.logger.error(`Error filtering contacts: ${error.message}`);
+      const errorDetail = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+      this.logger.error(`Error filtering contacts: ${errorDetail}`);
       throw error;
     }
   }

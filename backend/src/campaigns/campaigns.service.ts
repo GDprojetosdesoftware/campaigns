@@ -24,39 +24,50 @@ export class CampaignsService {
 
   async create(createCampaignDto: any) {
     const { name, message, filters = [], inboxId, evolutionInstance } = createCampaignDto;
-    
-    // Tenta pegar do DTO ou do ConfigService
     const accountId = createCampaignDto.accountId || this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
 
-    if (!accountId) {
-      throw new Error('CHATWOOT_ACCOUNT_ID is required');
+    try {
+      this.logger.log(`Starting campaign creation: ${name} (Account: ${accountId})`);
+
+      if (!accountId) {
+        throw new Error('CHATWOOT_ACCOUNT_ID is required');
+      }
+
+      // 1. Busca contatos filtrados no Chatwoot
+      this.logger.log(`Step 1: Fetching contacts from Chatwoot with filters: ${filters.join(', ')}`);
+      const contacts = await this.chatwootService.filterContacts(Number(accountId), filters);
+      
+      this.logger.log(`Step 2: Persisting campaign in database. Found ${contacts?.length || 0} contacts.`);
+
+      // 2. Salva a campanha no banco
+      const campaign = this.campaignRepository.create({
+        name,
+        message,
+        filters,
+        accountId,
+        inboxId,
+        evolutionInstance,
+        status: (contacts && contacts.length > 0) ? CampaignStatus.PROCESSING : CampaignStatus.COMPLETED,
+        totalContacts: contacts?.length || 0,
+      });
+
+      const savedCampaign = await this.campaignRepository.save(campaign);
+
+      // 3. Adiciona na fila de disparos apenas se houver contatos
+      if (contacts && contacts.length > 0) {
+        this.logger.log(`Step 3: Enqueuing ${contacts.length} jobs for campaign ${savedCampaign.id}`);
+        await this.enqueueDisparos(savedCampaign.id, contacts);
+      } else {
+        this.logger.warn(`No contacts found for campaign ${savedCampaign.id}. Skipping enqueue.`);
+      }
+
+      this.logger.log(`Campaign ${savedCampaign.id} created successfully.`);
+      return savedCampaign;
+
+    } catch (error) {
+      this.logger.error(`Failed to create campaign: ${error.message}`, error.stack);
+      throw error;
     }
-
-    // 1. Busca contatos filtrados no Chatwoot
-    const contacts = await this.chatwootService.filterContacts(Number(accountId), filters);
-    
-    // 2. Salva a campanha no banco
-    const campaign = this.campaignRepository.create({
-      name,
-      message,
-      filters,
-      accountId,
-      inboxId,
-      evolutionInstance,
-      status: contacts.length > 0 ? CampaignStatus.PROCESSING : CampaignStatus.COMPLETED,
-      totalContacts: contacts.length,
-    });
-
-    const savedCampaign = await this.campaignRepository.save(campaign);
-
-    // 3. Adiciona na fila de disparos apenas se houver contatos
-    if (contacts.length > 0) {
-      await this.enqueueDisparos(savedCampaign.id, contacts);
-    } else {
-      this.logger.warn(`No contacts found for campaign ${savedCampaign.id} with filters: ${filters.join(', ')}`);
-    }
-
-    return savedCampaign;
   }
 
   private async enqueueDisparos(campaignId: number, contacts: any[]) {
