@@ -16,7 +16,7 @@ export default function NewCampaignPage() {
         message: "",
         tags: "",
         inboxId: "",
-        instance: "default",
+        instance: "",
     });
 
     const [inboxes, setInboxes] = useState<any[]>([]);
@@ -143,13 +143,25 @@ export default function NewCampaignPage() {
                                         <label className="text-[10px] uppercase font-bold text-gray-500 tracking-widest pl-1 mb-2 block">Instância Evolution (WhatsApp)</label>
                                         <div className="relative">
                                             <select
+                                                required
                                                 className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-2xl px-6 py-4 text-lg focus:border-blue-500/50 outline-none transition-all appearance-none cursor-pointer"
                                                 value={formData.instance}
                                                 onChange={(e) => setFormData({ ...formData, instance: e.target.value })}
                                             >
-                                                <option value="default">Canal Principal (Default)</option>
-                                                <option value="atendimento">Departamento de Atendimento</option>
-                                                <option value="vendas">Time de SDR / Vendas</option>
+                                                <option value="" disabled hidden>Selecione uma instância...</option>
+                                                {isLoadingInstances ? (
+                                                    <option disabled>Carregando instâncias...</option>
+                                                ) : (
+                                                    instances.map((inst: any, idx: number) => {
+                                                        const name = inst?.instance?.instanceName || inst?.name || inst?.instanceName || (typeof inst === 'string' ? inst : `Instância ${idx + 1}`);
+                                                        const status = inst?.instance?.status || inst?.status || inst?.connectionStatus || "";
+                                                        return (
+                                                            <option key={name + idx} value={name}>
+                                                                {name} {status ? `(${status})` : ''}
+                                                            </option>
+                                                        );
+                                                    })
+                                                )}
                                             </select>
                                             <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-gray-400 pointer-events-none" size={20} />
                                         </div>
@@ -211,30 +223,7 @@ export default function NewCampaignPage() {
                                         </div>
                                         <p className="text-[9px] text-gray-500 mt-3 font-bold uppercase tracking-wider pl-1">As conversas serão iniciadas através desta caixa de entrada.</p>
                                     </div>
-                                    <div className="group">
-                                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-widest pl-1 mb-2 block">Instância WhatsApp (Evolution)</label>
-                                        <div className="relative">
-                                            <select
-                                                required
-                                                className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-2xl px-6 py-4 text-lg focus:border-green-500/50 outline-none transition-all appearance-none cursor-pointer"
-                                                value={formData.instance}
-                                                onChange={(e) => setFormData({ ...formData, instance: e.target.value })}
-                                            >
-                                                <option value="">Selecione uma instância...</option>
-                                                {isLoadingInstances ? (
-                                                    <option disabled>Carregando instâncias...</option>
-                                                ) : (
-                                                    instances.map((instance: any) => (
-                                                        <option key={instance.instance.instanceName} value={instance.instance.instanceName}>
-                                                            {instance.instance.instanceName} ({instance.instance.status})
-                                                        </option>
-                                                    ))
-                                                )}
-                                            </select>
-                                            <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-gray-400 pointer-events-none" size={20} />
-                                        </div>
-                                        <p className="text-[9px] text-gray-500 mt-3 font-bold uppercase tracking-wider pl-1">Escolha a instância que fará o envio das mensagens.</p>
-                                    </div>
+
                                 </div>
                             </div>
                             <div className="flex justify-between pt-4">
