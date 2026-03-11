@@ -9,6 +9,7 @@ import { Campaign } from './campaigns/entities/campaign.entity';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: '../.env',
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

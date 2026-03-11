@@ -22,6 +22,10 @@ export class ChatwootService {
 
   async filterContacts(accountId: number, filters: string[]) {
     try {
+      if (!this.httpClient.defaults.baseURL || !this.httpClient.defaults.headers['api_access_token']) {
+        throw new Error('Chatwoot API URL or Token not configured. Check environment variables.');
+      }
+
       if (!filters || filters.length === 0) {
         this.logger.warn(`No filters provided for account ${accountId}. Returning empty contact list.`);
         return [];
@@ -30,7 +34,7 @@ export class ChatwootService {
       
       const payload = [{
         attribute_key: 'labels',
-        filter_operator: 'contains',
+        filter_operator: 'contains_any',
         values: filters,
         attribute_model: 'standard'
       }];

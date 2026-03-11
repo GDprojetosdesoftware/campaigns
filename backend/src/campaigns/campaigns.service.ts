@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -30,38 +30,50 @@ export class CampaignsService {
       this.logger.log(`Starting campaign creation: ${name} (Account: ${accountId})`);
 
       if (!accountId) {
-        throw new Error('CHATWOOT_ACCOUNT_ID is required');
+        throw new BadRequestException('CHATWOOT_ACCOUNT_ID is required (check environment variables)');
+      }
+      if (!name || !message || !inboxId || !evolutionInstance) {
+        throw new BadRequestException('Fields name, message, inboxId, and evolutionInstance are required');
       }
 
       // 1. Busca contatos filtrados no Chatwoot
-      this.logger.log(`Step 1: Fetching contacts from Chatwoot with filters: ${filters.join(', ')}`);
+      this.logger.log(`Step 1: Fetching contacts from Chatwoot with filters: ${JSON.stringify(filters)}`);
       const contacts = await this.chatwootService.filterContacts(Number(accountId), filters);
       
-      this.logger.log(`Step 2: Persisting campaign in database. Found ${contacts?.length || 0} contacts.`);
+      const contactsCount = contacts?.length || 0;
+      this.logger.log(`Step 2: Persisting campaign in database. Found ${contactsCount} contacts.`);
 
       // 2. Salva a campanha no banco
       const campaign = this.campaignRepository.create({
         name,
         message,
         filters,
-        accountId,
-        inboxId,
+        accountId: Number(accountId),
+        inboxId: Number(inboxId),
         evolutionInstance,
-        status: (contacts && contacts.length > 0) ? CampaignStatus.PROCESSING : CampaignStatus.COMPLETED,
-        totalContacts: contacts?.length || 0,
+        status: contactsCount > 0 ? CampaignStatus.PROCESSING : CampaignStatus.COMPLETED,
+        totalContacts: contactsCount,
       });
 
       const savedCampaign = await this.campaignRepository.save(campaign);
 
       // 3. Adiciona na fila de disparos apenas se houver contatos
-      if (contacts && contacts.length > 0) {
-        this.logger.log(`Step 3: Enqueuing ${contacts.length} jobs for campaign ${savedCampaign.id}`);
-        await this.enqueueDisparos(savedCampaign.id, contacts);
+      if (contactsCount > 0) {
+        this.logger.log(`Step 3: Enqueuing ${contactsCount} jobs for campaign ${savedCampaign.id}`);
+        try {
+          await this.enqueueDisparos(savedCampaign.id, contacts);
+        } catch (queueError) {
+          this.logger.error(`Failed to enqueue disparos for campaign ${savedCampaign.id}: ${queueError.message}`);
+          // Considera marcar a campanha como falha se não conseguir enfileirar no Redis
+          savedCampaign.status = CampaignStatus.COMPLETED; // Ou um novo status 'FAILED'
+          await this.campaignRepository.save(savedCampaign);
+          throw new Error(`Failed to enqueue jobs. Check Redis connection: ${queueError.message}`);
+        }
       } else {
-        this.logger.warn(`No contacts found for campaign ${savedCampaign.id}. Skipping enqueue.`);
+        this.logger.warn(`No contacts found for campaign ${savedCampaign.id}. Status set to COMPLETED.`);
       }
 
-      this.logger.log(`Campaign ${savedCampaign.id} created successfully.`);
+      this.logger.log(`Campaign ${savedCampaign.id} processed successfully with status ${savedCampaign.status}.`);
       return savedCampaign;
 
     } catch (error) {

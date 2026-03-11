@@ -79,8 +79,13 @@ export default function NewCampaignPage() {
         fetchLabels();
     }, []);
 
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsSubmitting(true);
+        setSubmitError(null);
         try {
             const response = await apiFetch('/campaigns', {
                 method: "POST",
@@ -97,11 +102,17 @@ export default function NewCampaignPage() {
                 alert("Campanha criada com sucesso! Redirecionando para o Dashboard.");
                 router.push("/campaigns");
             } else {
-                alert("Erro ao criar campanha. Verifique os dados.");
+                const errorData = await response.json().catch(() => ({}));
+                const errorMessage = errorData.message || errorData.error || "Erro ao criar campanha. Verifique os dados.";
+                setSubmitError(errorMessage);
+                alert(`Erro: ${errorMessage}`);
             }
         } catch (error) {
             console.error("Error submitting campaign:", error);
+            setSubmitError("Erro de conexão com o servidor.");
             alert("Erro de conexão com o servidor.");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
