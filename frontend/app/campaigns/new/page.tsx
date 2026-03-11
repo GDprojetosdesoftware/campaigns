@@ -21,8 +21,11 @@ export default function NewCampaignPage() {
 
     const [inboxes, setInboxes] = useState<any[]>([]);
     const [instances, setInstances] = useState<any[]>([]);
+    const [labels, setLabels] = useState<any[]>([]);
     const [isLoadingInboxes, setIsLoadingInboxes] = useState(false);
     const [isLoadingInstances, setIsLoadingInstances] = useState(false);
+    const [isLoadingLabels, setIsLoadingLabels] = useState(false);
+    const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
     const router = useRouter();
 
     React.useEffect(() => {
@@ -56,8 +59,24 @@ export default function NewCampaignPage() {
             }
         };
 
+        const fetchLabels = async () => {
+            setIsLoadingLabels(true);
+            try {
+                const response = await apiFetch('/campaigns/labels');
+                if (response.ok) {
+                    const data = await response.json();
+                    setLabels(data);
+                }
+            } catch (error) {
+                console.error("Error fetching labels:", error);
+            } finally {
+                setIsLoadingLabels(false);
+            }
+        };
+
         fetchInboxes();
         fetchInstances();
+        fetchLabels();
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -68,7 +87,7 @@ export default function NewCampaignPage() {
                 body: JSON.stringify({
                     name: formData.name,
                     message: formData.message,
-                    filters: formData.tags ? formData.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
+                    filters: selectedLabels,
                     inboxId: parseInt(formData.inboxId),
                     evolutionInstance: formData.instance
                 }),
@@ -190,14 +209,39 @@ export default function NewCampaignPage() {
 
                                 <div className="grid grid-cols-1 gap-8">
                                     <div className="group">
-                                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-widest pl-1 mb-2 block">Etiquetas (Separe por vírgula)</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Ex: vip, hot_lead, lead_frio"
-                                            className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-2xl px-6 py-4 text-lg focus:border-green-500/50 focus:ring-4 focus:ring-green-500/5 outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                                            value={formData.tags}
-                                            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                                        />
+                                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-widest pl-1 mb-2 block">Etiquetas (Público-alvo)</label>
+                                        <div className="flex flex-wrap gap-2 mb-3">
+                                            {selectedLabels.map(label => (
+                                                <span key={label} className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-2 border border-green-200 dark:border-green-800">
+                                                    {label}
+                                                    <button type="button" onClick={() => setSelectedLabels(selectedLabels.filter(l => l !== label))} className="hover:text-green-900 dark:hover:text-green-200 transition-colors">×</button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                        <div className="relative">
+                                            <select
+                                                className="w-full bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-2xl px-6 py-4 text-lg focus:border-green-500/50 outline-none transition-all appearance-none cursor-pointer"
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val && !selectedLabels.includes(val)) {
+                                                        setSelectedLabels([...selectedLabels, val]);
+                                                    }
+                                                    e.target.value = "";
+                                                }}
+                                            >
+                                                <option value="">Selecione as etiquetas...</option>
+                                                {isLoadingLabels ? (
+                                                    <option disabled>Carregando etiquetas...</option>
+                                                ) : (
+                                                    labels.map((label: any) => (
+                                                        <option key={label.id} value={label.title}>
+                                                            {label.title}
+                                                        </option>
+                                                    ))
+                                                )}
+                                            </select>
+                                            <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-gray-400 pointer-events-none" size={20} />
+                                        </div>
                                     </div>
                                     <div className="group">
                                         <label className="text-[10px] uppercase font-bold text-gray-500 tracking-widest pl-1 mb-2 block">Caixa de Entrada (Chatwoot)</label>

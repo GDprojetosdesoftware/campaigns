@@ -15,6 +15,11 @@ export class CampaignsController {
     return this.campaignsService.getInboxes();
   }
 
+  @Get('labels')
+  getLabels() {
+    return this.campaignsService.getLabels();
+  }
+
   @Get('instances')
   getInstances() {
     return this.campaignsService.getEvolutionInstances();

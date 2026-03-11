@@ -24,14 +24,12 @@ export class ChatwootService {
     try {
       this.logger.log(`Filtering contacts for account ${accountId} with tags: ${filters.join(', ')}`);
       
-      const payload = [
-        {
-          attribute_key: 'labels',
-          filter_operator: 'equal_to',
-          values: filters,
-          query_operator: 'and'
-        }
-      ];
+      const payload = filters.map(tag => ({
+        attribute_key: 'labels',
+        filter_operator: 'equal_to',
+        values: [tag],
+        query_operator: 'and'
+      }));
 
       const response = await this.httpClient.post(
         `/api/v1/accounts/${accountId}/contacts/filter`,
@@ -40,6 +38,19 @@ export class ChatwootService {
       return response.data.payload; // Array de contatos
     } catch (error) {
       this.logger.error(`Error filtering contacts: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async getLabels(accountId: number) {
+    try {
+      this.logger.log(`Fetching labels for account ${accountId}`);
+      const response = await this.httpClient.get(
+        `/api/v1/accounts/${accountId}/labels`,
+      );
+      return response.data.payload;
+    } catch (error) {
+      this.logger.error(`Error fetching labels: ${error.message}`);
       throw error;
     }
   }

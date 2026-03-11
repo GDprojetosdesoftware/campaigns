@@ -91,6 +91,14 @@ export class CampaignsService {
     return this.chatwootService.getInboxes(Number(accountId));
   }
 
+  async getLabels() {
+    const accountId = this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
+    if (!accountId) {
+      throw new Error('CHATWOOT_ACCOUNT_ID is required');
+    }
+    return this.chatwootService.getLabels(Number(accountId));
+  }
+
   async getEvolutionInstances() {
     return this.evolutionService.fetchInstances();
   }
