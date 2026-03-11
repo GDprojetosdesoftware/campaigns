@@ -34,7 +34,7 @@ export class ChatwootService {
       
       const payload = [{
         attribute_key: 'labels',
-        filter_operator: 'contains_any',
+        filter_operator: 'equal_to',
         values: filters,
         attribute_model: 'standard'
       }];
