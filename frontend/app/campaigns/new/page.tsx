@@ -68,9 +68,9 @@ export default function NewCampaignPage() {
                 body: JSON.stringify({
                     name: formData.name,
                     message: formData.message,
-                    tags: formData.tags.split(",").map(t => t.trim()),
+                    filters: formData.tags.split(",").map(t => t.trim()),
                     inboxId: parseInt(formData.inboxId),
-                    instance: formData.instance
+                    evolutionInstance: formData.instance
                 }),
             });
 
