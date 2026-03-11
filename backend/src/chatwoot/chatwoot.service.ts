@@ -30,10 +30,13 @@ export class ChatwootService {
       
       const payload = filters.map((tag, index) => ({
         attribute_key: 'labels',
-        filter_operator: 'equal_to',
+        filter_operator: 'contains',
         values: [tag],
-        query_operator: index === filters.length - 1 ? null : 'and'
+        attribute_model: 'standard',
+        query_operator: index === filters.length - 1 ? null : 'or'
       }));
+
+      this.logger.debug(`Filter payload: ${JSON.stringify(payload)}`);
 
       const response = await this.httpClient.post(
         `/api/v1/accounts/${accountId}/contacts/filter`,
