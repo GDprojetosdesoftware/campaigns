@@ -34,11 +34,12 @@ export class ChatwootService {
 
       this.logger.log(`Filtering contacts for account ${accountId} with tags: ${filters.join(', ')}`);
       
-      const payload = filters.map((filter, index) => ({
+      const payload = filters.map((filter) => ({
         attribute_key: 'labels',
         filter_operator: 'equal_to',
         values: [filter],
-        query_operator: index === filters.length - 1 ? 'and' : 'and' // 'and' or 'or' for joining
+        query_operator: 'and',
+        attribute_model: 'standard',
       }));
 
       this.logger.debug(`Filter payload sent to Chatwoot: ${JSON.stringify({ payload })}`);
