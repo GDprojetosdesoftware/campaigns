@@ -26,10 +26,12 @@ export class ChatwootService {
         throw new Error('Chatwoot API URL or Token not configured. Check environment variables.');
       }
 
+      // Se não há filtros, busca TODOS os contatos paginados
       if (!filters || filters.length === 0) {
-        this.logger.warn(`No filters provided for account ${accountId}. Returning empty contact list.`);
-        return [];
+        this.logger.log(`No filters provided for account ${accountId}. Fetching ALL contacts.`);
+        return this.getAllContacts(accountId);
       }
+
       this.logger.log(`Filtering contacts for account ${accountId} with tags: ${filters.join(', ')}`);
       
       const payload = [{
@@ -59,6 +61,29 @@ export class ChatwootService {
     }
   }
 
+  /** Busca todos os contatos paginando até o fim */
+  private async getAllContacts(accountId: number): Promise<any[]> {
+    const allContacts: any[] = [];
+    let page = 1;
+    const pageSize = 100;
+
+    while (true) {
+      const response = await this.httpClient.get(
+        `/api/v1/accounts/${accountId}/contacts`,
+        { params: { page, include_contacts: true } },
+      );
+
+      const contacts = response.data?.payload || [];
+      allContacts.push(...contacts);
+
+      if (contacts.length < pageSize) break; // última página
+      page++;
+    }
+
+    this.logger.log(`Fetched ${allContacts.length} total contacts for account ${accountId}`);
+    return allContacts;
+  }
+
   async getLabels(accountId: number) {
     try {
       this.logger.log(`Fetching labels for account ${accountId}`);
@@ -74,19 +99,28 @@ export class ChatwootService {
 
   async getOrCreateConversation(accountId: number, inboxId: number, contactId: number) {
     try {
-      // Tenta buscar conversa existente (simplificado)
-      // No mundo real, você verificaria se já existe uma conversa aberta para este contato no inbox
       this.logger.log(`Creating/Finding conversation for contact ${contactId} in inbox ${inboxId}`);
       
+      // inbox_id é o campo correto na API v1 do Chatwoot
       const response = await this.httpClient.post(
         `/api/v1/accounts/${accountId}/conversations`,
         {
-          source_id: inboxId,
+          inbox_id: inboxId,
           contact_id: contactId,
         },
       );
       return response.data;
     } catch (error) {
+      // Se a conversa já existe (409 Conflict), tenta buscar a existente
+      if (error.response?.status === 409 || error.response?.data?.error?.includes('already')) {
+        this.logger.warn(`Conversation may already exist for contact ${contactId}. Trying to find it.`);
+        const existing = await this.httpClient.get(
+          `/api/v1/accounts/${accountId}/contacts/${contactId}/conversations`,
+        );
+        const conversations = existing.data?.payload || [];
+        const match = conversations.find((c: any) => c.inbox_id === inboxId);
+        if (match) return match;
+      }
       this.logger.error(`Error creating conversation: ${error.message}`);
       throw error;
     }

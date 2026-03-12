@@ -2,8 +2,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from "react";
-import { Plus, Send, AlertCircle, CheckCircle2, Clock, MoreVertical, LayoutGrid, List, Search, Bell } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Send, AlertCircle, CheckCircle2, Clock, MoreVertical, LayoutGrid, List, Search, Bell, Play, Trash2, Copy, Pencil, X, RefreshCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
@@ -11,7 +11,7 @@ import { apiFetch } from "@/lib/api";
 interface Campaign {
     id: string;
     name: string;
-    status: 'completed' | 'processing' | 'pending' | 'failed';
+    status: 'completed' | 'processing' | 'pending' | 'failed' | 'cancelled';
     total: number;
     sent: number;
     error: number;
@@ -22,7 +22,7 @@ interface Campaign {
 interface CampaignData {
     id: string;
     name: string;
-    status: 'completed' | 'processing' | 'pending' | 'failed';
+    status: 'completed' | 'processing' | 'pending' | 'failed' | 'cancelled';
     totalContacts?: number;
     sentSuccess?: number;
     sentError?: number;
@@ -34,48 +34,107 @@ export default function CampaignsPage() {
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [actionMenu, setActionMenu] = useState<string | null>(null);
+    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
     
     const totalSent = campaigns.reduce((acc, camp) => acc + camp.sent, 0);
     const totalContacts = campaigns.reduce((acc, camp) => acc + camp.total, 0);
     const deliveryRate = totalContacts > 0 ? (totalSent / totalContacts) * 100 : 0;
     const activeCampaigns = campaigns.filter(c => c.status === 'processing').length;
 
-    useEffect(() => {
-        async function fetchCampaigns() {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await apiFetch('/campaigns');
-                if (!res.ok) throw new Error('Falha ao buscar campanhas');
-                const data = await res.json();
-                
-                const formattedCampaigns: Campaign[] = data.map((camp: CampaignData) => ({
-                    id: camp.id,
-                    name: camp.name,
-                    status: camp.status,
-                    total: camp.totalContacts || 0,
-                    sent: camp.sentSuccess || 0,
-                    error: camp.sentError || 0,
-                    date: new Date(camp.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
-                    type: camp.evolutionInstance === 'default' ? 'Broadcast' : camp.evolutionInstance
-                }));
-                
-                setCampaigns(formattedCampaigns);
-            } catch (err) {
-                console.error(err);
-                setError('Não foi possível carregar as campanhas. Verifique sua conexão.');
-                setCampaigns([]);
-            } finally {
-                setLoading(false);
-            }
+    const fetchCampaigns = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await apiFetch('/campaigns');
+            if (!res.ok) throw new Error('Falha ao buscar campanhas');
+            const data = await res.json();
+            
+            const formattedCampaigns: Campaign[] = data.map((camp: CampaignData) => ({
+                id: camp.id,
+                name: camp.name,
+                status: camp.status,
+                total: camp.totalContacts || 0,
+                sent: camp.sentSuccess || 0,
+                error: camp.sentError || 0,
+                date: new Date(camp.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+                type: camp.evolutionInstance === 'default' ? 'Broadcast' : camp.evolutionInstance
+            }));
+            
+            setCampaigns(formattedCampaigns);
+        } catch (err) {
+            console.error(err);
+            setError('Não foi possível carregar as campanhas. Verifique sua conexão.');
+            setCampaigns([]);
+        } finally {
+            setLoading(false);
         }
+    };
 
+    useEffect(() => {
         fetchCampaigns();
     }, []);
 
+    // Close dropdown on outside click
+    useEffect(() => {
+        const handleClick = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setActionMenu(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, []);
+
+    const handleStartCampaign = async (id: string) => {
+        setActionLoading(id + '-start');
+        try {
+            const res = await apiFetch(`/campaigns/${id}/start`, { method: 'POST' });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.message || 'Falha ao iniciar campanha');
+            }
+            await fetchCampaigns();
+        } catch (error: any) {
+            alert(`Erro ao iniciar campanha: ${error.message}`);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleDuplicate = async (id: string) => {
+        setActionMenu(null);
+        setActionLoading(id + '-dup');
+        try {
+            const res = await apiFetch(`/campaigns/${id}/duplicate`, { method: 'POST' });
+            if (!res.ok) throw new Error('Falha ao duplicar campanha');
+            await fetchCampaigns();
+        } catch (error: any) {
+            alert(`Erro ao duplicar: ${error.message}`);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        setDeleteConfirm(null);
+        setActionLoading(id + '-del');
+        try {
+            const res = await apiFetch(`/campaigns/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Falha ao excluir campanha');
+            setCampaigns(prev => prev.filter(c => c.id !== id));
+        } catch (error: any) {
+            alert(`Erro ao excluir: ${error.message}`);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-[#09090b] text-gray-900 dark:text-white font-sans selection:bg-blue-500/30 transition-colors duration-300">
-            {/* Sidebar Simulação */}
+            {/* Sidebar */}
             <aside className="fixed left-0 top-0 h-full w-20 bg-white dark:bg-[#121214] border-r border-gray-200 dark:border-white/5 flex flex-col items-center py-8 gap-8 z-50 transition-colors duration-300">
                 <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
                     <Send size={22} className="text-white" />
@@ -108,29 +167,34 @@ export default function CampaignsPage() {
                                 className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-full pl-10 pr-4 py-2 text-sm w-64 outline-none focus:border-blue-500/50 dark:focus:border-blue-500/50 transition-all text-gray-900 dark:text-white"
                             />
                         </div>
+                        <button
+                            onClick={fetchCampaigns}
+                            className="p-2.5 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-white/5"
+                            title="Atualizar"
+                        >
+                            <RefreshCcw size={18} />
+                        </button>
                         <Link href="/campaigns/new" className="flex items-center gap-2 bg-gray-900 text-white dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 transition-all px-5 py-2.5 rounded-full text-sm font-bold shadow-xl">
                             <Plus size={18} />
                             Nova Campanha
                         </Link>
                     </div>
                 </header>
+
                 <section className="p-10 max-w-[1600px] mx-auto">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-                            {[
-                                { label: "Total de Envio", value: totalSent > 1000 ? `${(totalSent/1000).toFixed(1)}K` : totalSent.toString(), change: "", color: "blue" },
-                                { label: "Taxa de Entrega", value: `${deliveryRate.toFixed(1)}%`, change: "", color: "green" },
-                                { label: "Contatos Totais", value: totalContacts.toString(), change: "", color: "purple" },
-                                { label: "Campanhas Ativas", value: activeCampaigns.toString(), sub: "Atualmente", color: "orange" },
-                            ].map((stat, i) => (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+                        {[
+                            { label: "Total de Envio", value: totalSent > 1000 ? `${(totalSent/1000).toFixed(1)}K` : totalSent.toString(), color: "blue" },
+                            { label: "Taxa de Entrega", value: `${deliveryRate.toFixed(1)}%`, color: "green" },
+                            { label: "Contatos Totais", value: totalContacts.toString(), color: "purple" },
+                            { label: "Campanhas Ativas", value: activeCampaigns.toString(), color: "orange" },
+                        ].map((stat, i) => (
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
                                 key={i} className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-white/5 p-6 rounded-3xl shadow-sm hover:border-gray-300 dark:hover:border-white/10 transition-colors"
                             >
                                 <p className="text-gray-500 text-sm font-medium mb-1">{stat.label}</p>
-                                <div className="flex items-end justify-between">
-                                    <h2 className="text-3xl font-bold tracking-tighter text-gray-900 dark:text-white">{stat.value}</h2>
-                                    {stat.change && <span className="text-xs font-bold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-400/10 px-2 py-1 rounded-md">{stat.change}</span>}
-                                </div>
+                                <h2 className="text-3xl font-bold tracking-tighter text-gray-900 dark:text-white">{stat.value}</h2>
                             </motion.div>
                         ))}
                     </div>
@@ -151,7 +215,7 @@ export default function CampaignsPage() {
                                     <h3 className="text-xl font-bold mb-2">Ops! Algo deu errado</h3>
                                     <p className="text-gray-500 max-w-sm mb-8">{error}</p>
                                     <button 
-                                        onClick={() => window.location.reload()}
+                                        onClick={fetchCampaigns}
                                         className="bg-gray-900 dark:bg-white text-white dark:text-black px-6 py-2 rounded-full font-bold transition-all hover:scale-105"
                                     >
                                         Tentar Novamente
@@ -185,9 +249,69 @@ export default function CampaignsPage() {
                                                 </span>
                                                 <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{camp.name}</h3>
                                             </div>
-                                            <button className="p-2 text-gray-400 dark:text-gray-600 hover:text-black dark:hover:text-white transition-colors">
-                                                <MoreVertical size={20} />
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                {/* Start / Re-run Button */}
+                                                {(camp.status === 'pending' || camp.status === 'failed' || camp.status === 'completed') && (
+                                                    <button 
+                                                        onClick={() => handleStartCampaign(camp.id)}
+                                                        disabled={actionLoading === camp.id + '-start'}
+                                                        className="bg-blue-600 text-white p-2 rounded-full shadow hover:bg-blue-500 transition-colors flex items-center justify-center disabled:opacity-50"
+                                                        title={camp.status === 'pending' ? 'Iniciar Disparo' : 'Re-executar Campanha'}
+                                                    >
+                                                        {actionLoading === camp.id + '-start'
+                                                            ? <div className="w-4 h-4 border-2 border-white border-t-transparent animate-spin rounded-full" />
+                                                            : <Play fill="currentColor" size={16} />
+                                                        }
+                                                    </button>
+                                                )}
+
+                                                {/* Action Menu */}
+                                                <div className="relative" ref={actionMenu === camp.id ? menuRef : undefined}>
+                                                    <button
+                                                        className="p-2 text-gray-400 dark:text-gray-600 hover:text-black dark:hover:text-white transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-white/5"
+                                                        onClick={() => setActionMenu(prev => prev === camp.id ? null : camp.id)}
+                                                    >
+                                                        <MoreVertical size={20} />
+                                                    </button>
+
+                                                    <AnimatePresence>
+                                                        {actionMenu === camp.id && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                                exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                                                                transition={{ duration: 0.15 }}
+                                                                className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#1c1c1f] border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden"
+                                                            >
+                                                                <Link
+                                                                    href={`/campaigns/${camp.id}/edit`}
+                                                                    className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                                                                    onClick={() => setActionMenu(null)}
+                                                                >
+                                                                    <Pencil size={15} className="text-blue-500" />
+                                                                    Editar
+                                                                </Link>
+                                                                <button
+                                                                    onClick={() => handleDuplicate(camp.id)}
+                                                                    disabled={actionLoading === camp.id + '-dup'}
+                                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                                                                >
+                                                                    <Copy size={15} className="text-green-500" />
+                                                                    {actionLoading === camp.id + '-dup' ? 'Duplicando...' : 'Duplicar'}
+                                                                </button>
+                                                                <div className="border-t border-gray-100 dark:border-white/5" />
+                                                                <button
+                                                                    onClick={() => { setDeleteConfirm(camp.id); setActionMenu(null); }}
+                                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                                                >
+                                                                    <Trash2 size={15} />
+                                                                    Excluir
+                                                                </button>
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <div className="space-y-6">
@@ -201,7 +325,7 @@ export default function CampaignsPage() {
                                                         initial={{ width: 0 }}
                                                         animate={{ width: `${(camp.sent / (camp.total || 1)) * 100}%` }}
                                                         transition={{ duration: 1.5, ease: "easeOut" }}
-                                                        className={`h-full ${camp.status === 'processing' ? 'bg-gradient-to-r from-blue-500 to-indigo-500 shadow-[0_0_10px_rgba(59,130,246,0.3)] dark:shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-green-500/80 hover:bg-green-400'}`}
+                                                        className={`h-full ${camp.status === 'processing' ? 'bg-gradient-to-r from-blue-500 to-indigo-500 shadow-[0_0_10px_rgba(59,130,246,0.3)] dark:shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-green-500/80'}`}
                                                     />
                                                 </div>
                                             </div>
@@ -238,6 +362,54 @@ export default function CampaignsPage() {
                     </div>
                 </section>
             </main>
+
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+                {deleteConfirm && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+                        onClick={() => setDeleteConfirm(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            transition={{ type: 'spring', duration: 0.4 }}
+                            className="bg-white dark:bg-[#1c1c1f] rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-200 dark:border-white/10"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="w-14 h-14 bg-red-100 dark:bg-red-500/10 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+                                <Trash2 size={28} className="text-red-600 dark:text-red-400" />
+                            </div>
+                            <h2 className="text-xl font-bold text-center mb-2">Excluir Campanha?</h2>
+                            <p className="text-gray-500 text-center text-sm mb-8">Esta ação é irreversível. A campanha será permanentemente removida.</p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setDeleteConfirm(null)}
+                                    className="flex-1 px-4 py-3 rounded-2xl border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <X size={16} />
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(deleteConfirm)}
+                                    disabled={actionLoading === deleteConfirm + '-del'}
+                                    className="flex-1 px-4 py-3 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {actionLoading === deleteConfirm + '-del'
+                                        ? <div className="w-4 h-4 border-2 border-white border-t-transparent animate-spin rounded-full" />
+                                        : <Trash2 size={16} />
+                                    }
+                                    Excluir
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -245,6 +417,7 @@ export default function CampaignsPage() {
 function StatusIcon({ status }: { status: Campaign['status'] }) {
     if (status === 'completed') return <CheckCircle2 size={14} className="text-green-500" />;
     if (status === 'processing') return <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent animate-spin rounded-full" />;
+    if (status === 'failed') return <AlertCircle size={14} className="text-red-500" />;
     return <Clock size={14} className="text-yellow-500" />;
 }
 
@@ -254,6 +427,7 @@ function StatusBadge({ status }: { status: Campaign['status'] }) {
         processing: { color: "text-blue-600 dark:text-blue-400 bg-blue-500/10", label: "Em disparo" },
         pending: { color: "text-yellow-600 dark:text-yellow-400 bg-yellow-500/10", label: "Pendente" },
         failed: { color: "text-red-600 dark:text-red-400 bg-red-500/10", label: "Erro Crítico" },
+        cancelled: { color: "text-gray-600 dark:text-gray-400 bg-gray-500/10", label: "Cancelada" },
     };
 
     const config = configs[status] || configs.pending;

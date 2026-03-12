@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -23,7 +23,7 @@ export class CampaignsService {
   ) {}
 
   async create(createCampaignDto: any) {
-    const { name, message, filters = [], inboxId, evolutionInstance } = createCampaignDto;
+    const { name, message, filters = [], inboxId, evolutionInstance, scheduledAt } = createCampaignDto;
     const accountId = createCampaignDto.accountId || this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
 
     try {
@@ -36,14 +36,8 @@ export class CampaignsService {
         throw new BadRequestException('Fields name, message, inboxId, and evolutionInstance are required');
       }
 
-      // 1. Busca contatos filtrados no Chatwoot
-      this.logger.log(`Step 1: Fetching contacts from Chatwoot with filters: ${JSON.stringify(filters)}`);
-      const contacts = await this.chatwootService.filterContacts(Number(accountId), filters);
-      
-      const contactsCount = contacts?.length || 0;
-      this.logger.log(`Step 2: Persisting campaign in database. Found ${contactsCount} contacts.`);
+      this.logger.log(`Saving campaign in database as PENDING.`);
 
-      // 2. Salva a campanha no banco
       const campaign = this.campaignRepository.create({
         name,
         message,
@@ -51,33 +45,69 @@ export class CampaignsService {
         accountId: Number(accountId),
         inboxId: Number(inboxId),
         evolutionInstance,
-        status: contactsCount > 0 ? CampaignStatus.PROCESSING : CampaignStatus.COMPLETED,
-        totalContacts: contactsCount,
+        status: CampaignStatus.PENDING,
+        totalContacts: 0,
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       });
 
       const savedCampaign = await this.campaignRepository.save(campaign);
 
-      // 3. Adiciona na fila de disparos apenas se houver contatos
-      if (contactsCount > 0) {
-        this.logger.log(`Step 3: Enqueuing ${contactsCount} jobs for campaign ${savedCampaign.id}`);
-        try {
-          await this.enqueueDisparos(savedCampaign.id, contacts);
-        } catch (queueError) {
-          this.logger.error(`Failed to enqueue disparos for campaign ${savedCampaign.id}: ${queueError.message}`);
-          // Considera marcar a campanha como falha se não conseguir enfileirar no Redis
-          savedCampaign.status = CampaignStatus.COMPLETED; // Ou um novo status 'FAILED'
-          await this.campaignRepository.save(savedCampaign);
-          throw new Error(`Failed to enqueue jobs. Check Redis connection: ${queueError.message}`);
-        }
-      } else {
-        this.logger.warn(`No contacts found for campaign ${savedCampaign.id}. Status set to COMPLETED.`);
-      }
-
-      this.logger.log(`Campaign ${savedCampaign.id} processed successfully with status ${savedCampaign.status}.`);
+      this.logger.log(`Campaign ${savedCampaign.id} created successfully with status ${savedCampaign.status}.`);
       return savedCampaign;
 
     } catch (error) {
       this.logger.error(`Failed to create campaign: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
+  async startCampaign(id: number) {
+    const campaign = await this.campaignRepository.findOneBy({ id });
+    if (!campaign) {
+      throw new NotFoundException(`Campaign ${id} not found`);
+    }
+
+    // Permite iniciar se PENDING ou re-iniciar se COMPLETED/FAILED
+    if (campaign.status === CampaignStatus.PROCESSING) {
+      throw new BadRequestException(`Campaign ${id} is already processing`);
+    }
+
+    // Reset para re-execução
+    campaign.sentSuccess = 0;
+    campaign.sentError = 0;
+    campaign.totalContacts = 0;
+
+    try {
+      this.logger.log(`Step 1: Fetching contacts from Chatwoot for campaign ${id} with filters: ${JSON.stringify(campaign.filters)}`);
+      const contacts = await this.chatwootService.filterContacts(campaign.accountId, campaign.filters || []);
+      
+      const contactsCount = contacts?.length || 0;
+      this.logger.log(`Step 2: Found ${contactsCount} contacts. Updating campaign status.`);
+
+      campaign.totalContacts = contactsCount;
+      campaign.status = contactsCount > 0 ? CampaignStatus.PROCESSING : CampaignStatus.COMPLETED;
+      
+      const updatedCampaign = await this.campaignRepository.save(campaign);
+
+      if (contactsCount > 0) {
+        this.logger.log(`Step 3: Enqueuing ${contactsCount} jobs for campaign ${id}`);
+        try {
+          await this.enqueueDisparos(id, contacts);
+        } catch (queueError) {
+          this.logger.error(`Failed to enqueue disparos for campaign ${id}: ${queueError.message}`);
+          updatedCampaign.status = CampaignStatus.FAILED;
+          await this.campaignRepository.save(updatedCampaign);
+          throw new Error(`Failed to enqueue jobs. Check Redis connection: ${queueError.message}`);
+        }
+      } else {
+        this.logger.warn(`No contacts found for campaign ${id}. Status set to COMPLETED.`);
+      }
+
+      return updatedCampaign;
+    } catch (error) {
+      this.logger.error(`Failed to start campaign ${id}: ${error.message}`, error.stack);
+      campaign.status = CampaignStatus.FAILED;
+      await this.campaignRepository.save(campaign);
       throw error;
     }
   }
@@ -98,7 +128,6 @@ export class CampaignsService {
       },
     }));
 
-    // Adiciona em chunks para evitar sobrecarga (opcional, mas recomendado para grandes volumes)
     await this.campaignQueue.addBulk(jobs);
   }
 
@@ -107,7 +136,62 @@ export class CampaignsService {
   }
 
   async findOne(id: number) {
-    return this.campaignRepository.findOneBy({ id });
+    const campaign = await this.campaignRepository.findOneBy({ id });
+    if (!campaign) throw new NotFoundException(`Campaign ${id} not found`);
+    return campaign;
+  }
+
+  async update(id: number, updateDto: any) {
+    const campaign = await this.campaignRepository.findOneBy({ id });
+    if (!campaign) throw new NotFoundException(`Campaign ${id} not found`);
+
+    // Only allow editing pending campaigns
+    if (campaign.status === CampaignStatus.PROCESSING) {
+      throw new BadRequestException('Cannot edit a campaign that is currently processing');
+    }
+
+    if (updateDto.name !== undefined) campaign.name = updateDto.name;
+    if (updateDto.message !== undefined) campaign.message = updateDto.message;
+    if (updateDto.filters !== undefined) campaign.filters = updateDto.filters;
+    if (updateDto.inboxId !== undefined) campaign.inboxId = Number(updateDto.inboxId);
+    if (updateDto.evolutionInstance !== undefined) campaign.evolutionInstance = updateDto.evolutionInstance;
+    if (updateDto.scheduledAt !== undefined) campaign.scheduledAt = updateDto.scheduledAt ? new Date(updateDto.scheduledAt) : null;
+
+    // Reset to pending when edited so user must restart
+    campaign.status = CampaignStatus.PENDING;
+    campaign.sentSuccess = 0;
+    campaign.sentError = 0;
+    campaign.totalContacts = 0;
+
+    return this.campaignRepository.save(campaign);
+  }
+
+  async remove(id: number) {
+    const campaign = await this.campaignRepository.findOneBy({ id });
+    if (!campaign) throw new NotFoundException(`Campaign ${id} not found`);
+    await this.campaignRepository.remove(campaign);
+    return { message: `Campaign ${id} deleted successfully` };
+  }
+
+  async duplicate(id: number) {
+    const original = await this.campaignRepository.findOneBy({ id });
+    if (!original) throw new NotFoundException(`Campaign ${id} not found`);
+
+    const duplicate = this.campaignRepository.create({
+      name: `${original.name} (cópia)`,
+      message: original.message,
+      filters: original.filters,
+      accountId: original.accountId,
+      inboxId: original.inboxId,
+      evolutionInstance: original.evolutionInstance,
+      status: CampaignStatus.PENDING,
+      totalContacts: 0,
+      sentSuccess: 0,
+      sentError: 0,
+      scheduledAt: null,
+    });
+
+    return this.campaignRepository.save(duplicate);
   }
 
   async getInboxes() {

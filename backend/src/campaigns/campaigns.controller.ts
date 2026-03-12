@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put, InternalServerErrorException, Logger } from '@nestjs/common';
 import { CampaignsService } from './campaigns.service';
 
 @Controller('campaigns')
@@ -16,6 +16,49 @@ export class CampaignsController {
         throw new InternalServerErrorException(error.message);
       }
       throw new InternalServerErrorException('Unknown error creating campaign');
+    }
+  }
+
+  @Post(':id/start')
+  async start(@Param('id') id: string) {
+    try {
+      return await this.campaignsService.startCampaign(+id);
+    } catch (error) {
+      console.error('Error starting campaign in controller:', error);
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      throw new InternalServerErrorException('Unknown error starting campaign');
+    }
+  }
+
+  @Post(':id/duplicate')
+  async duplicate(@Param('id') id: string) {
+    try {
+      return await this.campaignsService.duplicate(+id);
+    } catch (error) {
+      this.logger.error(`Error duplicating campaign: ${error.message}`);
+      throw new InternalServerErrorException(error.message || 'Error duplicating campaign');
+    }
+  }
+
+  @Put(':id')
+  async update(@Param('id') id: string, @Body() updateDto: any) {
+    try {
+      return await this.campaignsService.update(+id, updateDto);
+    } catch (error) {
+      this.logger.error(`Error updating campaign: ${error.message}`);
+      throw new InternalServerErrorException(error.message || 'Error updating campaign');
+    }
+  }
+
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    try {
+      return await this.campaignsService.remove(+id);
+    } catch (error) {
+      this.logger.error(`Error deleting campaign: ${error.message}`);
+      throw new InternalServerErrorException(error.message || 'Error deleting campaign');
     }
   }
 
