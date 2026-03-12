@@ -12,3 +12,5 @@ test-fix.mjs
 test-api.mjs
 test-chatwoot-filter.ts
 teste-evolution.mjs
+fix_plan.md
+deploy-fix.bat

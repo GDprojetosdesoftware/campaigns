@@ -34,29 +34,31 @@ export class ChatwootService {
 
       this.logger.log(`Filtering contacts for account ${accountId} with tags: ${filters.join(', ')}`);
       
-      const payload = [{
+      const payload = filters.map((filter, index) => ({
         attribute_key: 'labels',
-        filter_operator: 'equal_to',
-        values: filters,
-        attribute_model: 'standard'
-      }];
+        filter_operator: 'contains',
+        values: [filter],
+        query_operator: index === filters.length - 1 ? 'and' : 'and' // 'and' or 'or' for joining
+      }));
 
-      this.logger.debug(`Filter payload: ${JSON.stringify({ payload })}`);
+      this.logger.debug(`Filter payload sent to Chatwoot: ${JSON.stringify({ payload })}`);
 
       const response = await this.httpClient.post(
         `/api/v1/accounts/${accountId}/contacts/filter`,
         { payload },
       );
 
-      if (!response.data || !response.data.payload) {
-        this.logger.warn(`Chatwoot returned no payload for account ${accountId}. Response: ${JSON.stringify(response.data)}`);
-        return [];
+      const contacts = response.data?.payload || [];
+      this.logger.log(`Chatwoot returned ${contacts.length} contacts for filters: ${filters.join(', ')}`);
+
+      if (contacts.length === 0) {
+        this.logger.warn(`No contacts found in Chatwoot for account ${accountId} with labels: ${filters.join(', ')}`);
       }
 
-      return response.data.payload; // Array de contatos
+      return contacts; // Array de contatos
     } catch (error) {
       const errorDetail = error.response?.data ? JSON.stringify(error.response.data) : error.message;
-      this.logger.error(`Error filtering contacts: ${errorDetail}`);
+      this.logger.error(`Error filtering contacts in account ${accountId}: ${errorDetail}`);
       throw error;
     }
   }
