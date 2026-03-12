@@ -39,9 +39,23 @@ export class EvolutionService {
             this.logger.debug(`Instance allowed: ${itemInstanceName}`);
           }
           return isAllowed;
+        }).map((item: any) => {
+          // Return a normalized object
+          return {
+            instanceName: item.instance?.instanceName || item.instanceName || item.name || item.instance?.name || String(item),
+            status: item.instance?.status || item.status || 'unknown'
+          };
         });
         
         return filtered;
+      }
+      
+      // Also normalize if no env filtering is applied
+      if (response.data && Array.isArray(response.data)) {
+        return response.data.map((item: any) => ({
+          instanceName: item.instance?.instanceName || item.instanceName || item.name || item.instance?.name || String(item),
+          status: item.instance?.status || item.status || 'unknown'
+        }));
       }
       
       return response.data;
@@ -61,12 +75,14 @@ export class EvolutionService {
       
       this.logger.log(`Sending message to ${formattedNumber} via instance ${instanceName}`);
       
-      // Payload compatível com Evolution API v2.3.7 (sendText)
       const payload = {
         number: formattedNumber,
-        text,
-        delay: 1200,
-        linkPreview: false,
+        options: {
+          delay: 1200,
+          presence: 'composing',
+          linkPreview: false,
+        },
+        text: text,
       };
 
       this.logger.debug(`Payload for ${instanceName}: ${JSON.stringify(payload)}`);

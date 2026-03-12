@@ -58,9 +58,24 @@ export class CampaignProcessor extends WorkerHost {
       // 4. Atualiza contadores
       await this.campaignRepository.increment({ id: campaignId }, 'sentSuccess', 1);
 
+      // 5. Verifica se a campanha foi finalizada
+      const updatedCampaign = await this.campaignRepository.findOne({ where: { id: campaignId } });
+      if (updatedCampaign && (updatedCampaign.sentSuccess + updatedCampaign.sentError) >= updatedCampaign.totalContacts) {
+        await this.campaignRepository.update(campaignId, { status: CampaignStatus.COMPLETED });
+        this.logger.log(`Campaign ${campaignId} marked as COMPLETED`);
+      }
+
     } catch (error) {
       this.logger.error(`Failed to process contact ${contact.id}: ${error.message}`);
       await this.campaignRepository.increment({ id: campaignId }, 'sentError', 1);
+      
+      // Verifica finalização também no erro
+      const updatedCampaignAfterError = await this.campaignRepository.findOne({ where: { id: campaignId } });
+      if (updatedCampaignAfterError && (updatedCampaignAfterError.sentSuccess + updatedCampaignAfterError.sentError) >= updatedCampaignAfterError.totalContacts) {
+        await this.campaignRepository.update(campaignId, { status: CampaignStatus.COMPLETED });
+        this.logger.log(`Campaign ${campaignId} marked as COMPLETED (due to error at end)`);
+      }
+      
       throw error;
     }
   }

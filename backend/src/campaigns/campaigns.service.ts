@@ -44,7 +44,7 @@ export class CampaignsService {
         filters,
         accountId: Number(accountId),
         inboxId: Number(inboxId),
-        evolutionInstance,
+        evolutionInstance: evolutionInstance?.trim(),
         status: CampaignStatus.PENDING,
         totalContacts: 0,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
@@ -168,7 +168,7 @@ export class CampaignsService {
     if (updateDto.message !== undefined) campaign.message = updateDto.message;
     if (updateDto.filters !== undefined) campaign.filters = updateDto.filters;
     if (updateDto.inboxId !== undefined) campaign.inboxId = Number(updateDto.inboxId);
-    if (updateDto.evolutionInstance !== undefined) campaign.evolutionInstance = updateDto.evolutionInstance;
+    if (updateDto.evolutionInstance !== undefined) campaign.evolutionInstance = updateDto.evolutionInstance?.trim();
     if (updateDto.scheduledAt !== undefined) campaign.scheduledAt = updateDto.scheduledAt ? new Date(updateDto.scheduledAt) : null;
 
     // Reset to pending when edited so user must restart
