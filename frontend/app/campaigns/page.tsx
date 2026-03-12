@@ -17,6 +17,7 @@ interface Campaign {
     error: number;
     date: string;
     type: string;
+    instance_name?: string;
 }
 
 interface CampaignData {
@@ -59,8 +60,9 @@ export default function CampaignsPage() {
                 total: camp.totalContacts || 0,
                 sent: camp.sentSuccess || 0,
                 error: camp.sentError || 0,
-                date: new Date(camp.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
-                type: camp.evolutionInstance === 'default' ? 'Broadcast' : camp.evolutionInstance
+                date: new Date(camp.createdAt).toLocaleDateString('pt-BR'),
+                type: 'WhatsApp',
+                instance_name: camp.evolutionInstance
             }));
             
             setCampaigns(formattedCampaigns);
@@ -244,9 +246,16 @@ export default function CampaignsPage() {
                                     >
                                         <div className="flex justify-between items-start mb-6">
                                             <div>
-                                                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-500 mb-1 block">
-                                                    {camp.type}
-                                                </span>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-500 bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded-md">
+                                                        {camp.type}
+                                                    </span>
+                                                    {camp.instance_name && (
+                                                        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-md border border-gray-200 dark:border-white/5">
+                                                            {camp.instance_name}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{camp.name}</h3>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -255,12 +264,12 @@ export default function CampaignsPage() {
                                                     <button 
                                                         onClick={() => handleStartCampaign(camp.id)}
                                                         disabled={actionLoading === camp.id + '-start'}
-                                                        className="bg-blue-600 text-white p-2 rounded-full shadow hover:bg-blue-500 transition-colors flex items-center justify-center disabled:opacity-50"
+                                                        className="bg-blue-600 text-white p-2.5 rounded-full shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-all active:scale-95 flex items-center justify-center disabled:opacity-50"
                                                         title={camp.status === 'pending' ? 'Iniciar Disparo' : 'Re-executar Campanha'}
                                                     >
                                                         {actionLoading === camp.id + '-start'
                                                             ? <div className="w-4 h-4 border-2 border-white border-t-transparent animate-spin rounded-full" />
-                                                            : <Play fill="currentColor" size={16} />
+                                                            : <Play fill="currentColor" size={14} />
                                                         }
                                                     </button>
                                                 )}
@@ -268,7 +277,7 @@ export default function CampaignsPage() {
                                                 {/* Action Menu */}
                                                 <div className="relative" ref={actionMenu === camp.id ? menuRef : undefined}>
                                                     <button
-                                                        className="p-2 text-gray-400 dark:text-gray-600 hover:text-black dark:hover:text-white transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-white/5"
+                                                        className="p-2.5 text-gray-400 dark:text-gray-600 hover:text-black dark:hover:text-white transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent hover:border-gray-200 dark:hover:border-white/10"
                                                         onClick={() => setActionMenu(prev => prev === camp.id ? null : camp.id)}
                                                     >
                                                         <MoreVertical size={20} />
@@ -281,7 +290,7 @@ export default function CampaignsPage() {
                                                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                                                 exit={{ opacity: 0, scale: 0.95, y: -8 }}
                                                                 transition={{ duration: 0.15 }}
-                                                                className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#1c1c1f] border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden"
+                                                                className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#1c1c1f] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-xl"
                                                             >
                                                                 <Link
                                                                     href={`/campaigns/${camp.id}/edit`}
@@ -294,7 +303,7 @@ export default function CampaignsPage() {
                                                                 <button
                                                                     onClick={() => handleDuplicate(camp.id)}
                                                                     disabled={actionLoading === camp.id + '-dup'}
-                                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50 text-left"
                                                                 >
                                                                     <Copy size={15} className="text-green-500" />
                                                                     {actionLoading === camp.id + '-dup' ? 'Duplicando...' : 'Duplicar'}
@@ -302,7 +311,7 @@ export default function CampaignsPage() {
                                                                 <div className="border-t border-gray-100 dark:border-white/5" />
                                                                 <button
                                                                     onClick={() => { setDeleteConfirm(camp.id); setActionMenu(null); }}
-                                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors text-left"
                                                                 >
                                                                     <Trash2 size={15} />
                                                                     Excluir
@@ -314,43 +323,26 @@ export default function CampaignsPage() {
                                             </div>
                                         </div>
 
-                                        <div className="space-y-6">
-                                            <div>
-                                                <div className="flex justify-between text-xs mb-2 text-gray-500 font-bold uppercase tracking-wider">
-                                                    <span>Progresso do Disparo</span>
-                                                    <span className="text-gray-900 dark:text-white">{Math.round((camp.sent / (camp.total || 1)) * 100)}%</span>
-                                                </div>
-                                                <div className="w-full bg-gray-100 dark:bg-[#1c1c1f] rounded-full h-3 overflow-hidden border border-gray-200 dark:border-white/5">
-                                                    <motion.div
-                                                        initial={{ width: 0 }}
-                                                        animate={{ width: `${(camp.sent / (camp.total || 1)) * 100}%` }}
-                                                        transition={{ duration: 1.5, ease: "easeOut" }}
-                                                        className={`h-full ${camp.status === 'processing' ? 'bg-gradient-to-r from-blue-500 to-indigo-500 shadow-[0_0_10px_rgba(59,130,246,0.3)] dark:shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-green-500/80'}`}
-                                                    />
-                                                </div>
+                                        <div className="grid grid-cols-3 gap-4 mb-6">
+                                            <div className="bg-gray-50 dark:bg-white/5 p-3 rounded-2xl border border-gray-100 dark:border-white/5 transition-colors group-hover:bg-white dark:group-hover:bg-white/10">
+                                                <p className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider mb-1">Total</p>
+                                                <p className="text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">{camp.total}</p>
                                             </div>
-
-                                            <div className="flex gap-10">
-                                                <div>
-                                                    <p className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-0.5">Total</p>
-                                                    <p className="text-lg font-bold tracking-tight text-gray-900 dark:text-gray-100">{camp.total}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] uppercase font-bold tracking-wider mb-0.5 text-green-600 dark:text-green-500/70">Sucesso</p>
-                                                    <p className="text-lg font-bold tracking-tight text-green-600 dark:text-green-400">{camp.sent}</p>
-                                                </div>
-                                                {camp.error > 0 && (
-                                                    <div>
-                                                        <p className="text-[10px] uppercase font-bold tracking-wider mb-0.5 text-red-600 dark:text-red-500/70">Falhas</p>
-                                                        <p className="text-lg font-bold tracking-tight text-red-600 dark:text-red-400">{camp.error}</p>
-                                                    </div>
-                                                )}
+                                            <div className="bg-green-50/50 dark:bg-green-500/5 p-3 rounded-2xl border border-green-100/50 dark:border-green-500/10 transition-colors group-hover:bg-green-50 dark:group-hover:bg-green-500/10">
+                                                <p className="text-[10px] uppercase font-bold tracking-wider mb-1 text-green-600 dark:text-green-500/70">Sucesso</p>
+                                                <p className="text-xl font-bold tracking-tight text-green-600 dark:text-green-400">{camp.sent}</p>
+                                            </div>
+                                            <div className={`${camp.error > 0 ? 'bg-red-50/50 dark:bg-red-500/5 border-red-100/50 dark:border-red-500/10' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-white/5'} p-3 rounded-2xl border transition-colors group-hover:bg-red-50 dark:group-hover:bg-red-500/10`}>
+                                                <p className={`text-[10px] uppercase font-bold tracking-wider mb-1 ${camp.error > 0 ? 'text-red-600 dark:text-red-500/70' : 'text-gray-400 dark:text-gray-500'}`}>Falhas</p>
+                                                <p className={`text-xl font-bold tracking-tight ${camp.error > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>{camp.error}</p>
                                             </div>
                                         </div>
 
                                         <div className="mt-8 pt-6 border-t border-gray-100 dark:border-white/5 flex justify-between items-center text-xs font-medium">
-                                            <div className="flex items-center gap-2 text-gray-500">
-                                                <StatusIcon status={camp.status} />
+                                            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                                                <div className="p-1 bg-gray-100 dark:bg-white/5 rounded-full">
+                                                    <StatusIcon status={camp.status} />
+                                                </div>
                                                 {camp.date}
                                             </div>
                                             <StatusBadge status={camp.status} />
