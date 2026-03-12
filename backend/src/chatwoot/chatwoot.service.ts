@@ -36,7 +36,7 @@ export class ChatwootService {
       
       const payload = filters.map((filter, index) => ({
         attribute_key: 'labels',
-        filter_operator: 'contains',
+        filter_operator: 'equal_to',
         values: [filter],
         query_operator: index === filters.length - 1 ? 'and' : 'and' // 'and' or 'or' for joining
       }));
