@@ -62,7 +62,7 @@ export default function CampaignsPage() {
                 error: camp.sentError || 0,
                 date: new Date(camp.createdAt).toLocaleDateString('pt-BR'),
                 type: 'WhatsApp',
-                instance_name: camp.evolutionInstance
+                instance_name: camp.evolutionInstance || (camp as any).evolution_instance || "default"
             }));
             
             setCampaigns(formattedCampaigns);
@@ -250,7 +250,7 @@ export default function CampaignsPage() {
                                                     <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-500 bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded-md">
                                                         {camp.type}
                                                     </span>
-                                                    {camp.instance_name && (
+                                                    {camp.instance_name && camp.instance_name !== "" && (
                                                         <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-md border border-gray-200 dark:border-white/5">
                                                             {camp.instance_name}
                                                         </span>
