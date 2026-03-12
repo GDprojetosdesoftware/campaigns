@@ -213,8 +213,8 @@ export default function EditCampaignPage() {
                                     >
                                         <option value="">{isLoadingInstances ? 'Carregando...' : 'Selecionar Instância'}</option>
                                         {instances.map((inst: any) => (
-                                            <option key={inst.instance?.instanceName || inst.id} value={inst.instance?.instanceName || inst.id}>
-                                                {inst.instance?.instanceName || inst.name}
+                                            <option key={inst.instanceName || inst.id} value={inst.instanceName || inst.id}>
+                                                {inst.instanceName || inst.name}
                                             </option>
                                         ))}
                                     </select>

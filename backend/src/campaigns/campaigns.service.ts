@@ -113,20 +113,34 @@ export class CampaignsService {
   }
 
   private async enqueueDisparos(campaignId: number, contacts: any[]) {
-    this.logger.log(`Enqueuing ${contacts.length} jobs for campaign ${campaignId}`);
+    this.logger.log(`Enqueuing ${contacts.length} jobs for campaign ${campaignId} with randomized delays`);
     
-    const jobs = contacts.map(contact => ({
-      name: `disparo-${campaignId}-${contact.id}`,
-      data: { campaignId, contact },
-      opts: {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 5000,
+    let cumulativeDelay = 0;
+    const MIN_DELAY = 5000; // 5 segundos
+    const MAX_DELAY = 15000; // 15 segundos
+
+    const jobs = contacts.map((contact, index) => {
+      // Adiciona um delay aleatório entre MIN e MAX para cada mensagem
+      // O delay é cumulativo para que as mensagens sejam disparadas em sequência com intervalos
+      if (index > 0) {
+        const randomInterval = Math.floor(Math.random() * (MAX_DELAY - MIN_DELAY + 1)) + MIN_DELAY;
+        cumulativeDelay += randomInterval;
+      }
+
+      return {
+        name: `disparo-${campaignId}-${contact.id}`,
+        data: { campaignId, contact },
+        opts: {
+          delay: cumulativeDelay, // BullMQ delay em ms
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 5000,
+          },
+          removeOnComplete: true,
         },
-        removeOnComplete: true,
-      },
-    }));
+      };
+    });
 
     await this.campaignQueue.addBulk(jobs);
   }

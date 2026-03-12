@@ -26,13 +26,19 @@ export class EvolutionService {
       const response = await this.httpClient.get('/instance/fetchInstances');
       
       const envInstances = this.configService.get<string>('EVOLUTION_INSTANCE_NAME');
+      this.logger.debug(`Allowed instances from env: ${envInstances}`);
       
       if (envInstances && response.data && Array.isArray(response.data)) {
         const allowedNames = envInstances.split(',').map(name => name.trim().toLowerCase());
         
         const filtered = response.data.filter((item: any) => {
-          const itemInstanceName = item.instance?.instanceName || item.instanceName || item.name || String(item);
-          return allowedNames.includes(itemInstanceName.toLowerCase());
+          // Robust instance name extraction
+          const itemInstanceName = item.instance?.instanceName || item.instanceName || item.name || item.instance?.name || String(item);
+          const isAllowed = allowedNames.includes(itemInstanceName.toLowerCase());
+          if (isAllowed) {
+            this.logger.debug(`Instance allowed: ${itemInstanceName}`);
+          }
+          return isAllowed;
         });
         
         return filtered;
@@ -41,32 +47,43 @@ export class EvolutionService {
       return response.data;
     } catch (error) {
       this.logger.error(`Error fetching instances via Evolution: ${error.message}`);
+      if (error.response) {
+        this.logger.error(`Response data: ${JSON.stringify(error.response.data)}`);
+      }
       throw error;
     }
   }
 
   async sendMessage(instanceName: string, number: string, text: string) {
     try {
-      this.logger.log(`Sending message to ${number} via instance ${instanceName}`);
+      // Robust number formatting: remove all non-digits
+      const formattedNumber = number.replace(/\D/g, '');
       
-      // Ajuste conforme a versão da Evolution API que você usa
+      this.logger.log(`Sending message to ${formattedNumber} via instance ${instanceName}`);
+      
+      // Payload compatível com Evolution API v2.3.7 (sendText)
+      const payload = {
+        number: formattedNumber,
+        text,
+        delay: 1200,
+        linkPreview: false,
+      };
+
+      this.logger.debug(`Payload for ${instanceName}: ${JSON.stringify(payload)}`);
+
       const response = await this.httpClient.post(
         `/message/sendText/${instanceName}`,
-        {
-          number: number,
-          options: {
-            delay: 1200,
-            presence: 'composing',
-            linkPreview: false,
-          },
-          textMessage: {
-            text: text,
-          },
-        },
+        payload,
       );
+      
+      this.logger.log(`Message sent successfully to ${formattedNumber}. Status: ${response.status}`);
       return response.data;
     } catch (error) {
-      this.logger.error(`Error sending message via Evolution: ${error.message}`);
+      const errorData = error.response?.data;
+      const errorStatus = error.response?.status;
+      this.logger.error(
+        `Error sending message via Evolution (${errorStatus}): ${JSON.stringify(errorData || error.message)}`
+      );
       throw error;
     }
   }
