@@ -6,19 +6,7 @@ dist
 docker-compose.override.yml
 Guia Técnico_ Campanhas de Transmissão de Mensagens no Chatwoot
 SCRIPT_CHATWOOT.txt
-test-filter.js
-test-filter.mjs
-test-fix.mjs
-test-api.mjs
-test-chatwoot-filter.ts
-test-evolution.mjs
-fix_plan.md
-deploy-fix.bat
-debug-chatwoot.mjs
-inspect-labels.mjs
-list-labels.mjs
-console.log(await
-backend/test-api.js
+test-*
 .vscode/
 .gemini/
 *.tmp
