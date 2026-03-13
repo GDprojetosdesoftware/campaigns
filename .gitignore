@@ -11,6 +11,14 @@ test-filter.mjs
 test-fix.mjs
 test-api.mjs
 test-chatwoot-filter.ts
-teste-evolution.mjs
+test-evolution.mjs
 fix_plan.md
 deploy-fix.bat
+debug-chatwoot.mjs
+inspect-labels.mjs
+list-labels.mjs
+console.log(await
+backend/test-api.js
+.vscode/
+.gemini/
+*.tmp
