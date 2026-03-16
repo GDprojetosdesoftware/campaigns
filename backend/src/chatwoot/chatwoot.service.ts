@@ -39,23 +39,38 @@ export class ChatwootService {
       const conversations = await this.getConversationsByLabels(accountId, filters);
       this.logger.log(`Found ${conversations.length} conversations with labels: ${filters.join(', ')}`);
 
-      // 2. Extrair contatos únicos (dedup por id)
-      const contactMap = new Map<number, any>();
+      // 2. Extrair IDs de contatos únicos das conversas
+      const contactIds = new Set<number>();
       for (const conversation of conversations) {
-        const sender = conversation.meta?.sender;
-        if (sender?.id && !contactMap.has(sender.id)) {
-          contactMap.set(sender.id, {
-            id: sender.id,
-            name: sender.name || '',
-            phone_number: sender.phone_number || '',
-            email: sender.email || '',
-          });
+        const senderId = conversation.meta?.sender?.id;
+        if (senderId) {
+          contactIds.add(senderId);
+        }
+      }
+      this.logger.log(`Extracted ${contactIds.size} unique contact IDs from conversations`);
+
+      // 3. Buscar dados completos de cada contato (meta.sender NÃO traz phone_number)
+      const contacts: any[] = [];
+      for (const contactId of contactIds) {
+        try {
+          const res = await this.httpClient.get(
+            `/api/v1/accounts/${accountId}/contacts/${contactId}`,
+          );
+          const contact = res.data;
+          if (contact?.phone_number) {
+            contacts.push({
+              id: contact.id,
+              name: contact.name || '',
+              phone_number: contact.phone_number,
+              email: contact.email || '',
+            });
+          }
+        } catch (err) {
+          this.logger.warn(`Could not fetch contact ${contactId}: ${err.message}`);
         }
       }
 
-      // 3. Filtrar apenas quem tem telefone válido
-      const contacts = [...contactMap.values()].filter(c => c.phone_number);
-      this.logger.log(`Extracted ${contactMap.size} unique contacts, ${contacts.length} with phone number`);
+      this.logger.log(`${contacts.length} contacts with valid phone number`);
 
       if (contacts.length === 0) {
         this.logger.warn(`No contacts with phone found for account ${accountId} with labels: ${filters.join(', ')}`);
@@ -75,11 +90,12 @@ export class ChatwootService {
     let page = 1;
 
     while (true) {
-      const payload = labels.map((label) => ({
+      // Chatwoot exige que o último item tenha query_operator: null
+      const payload = labels.map((label, index) => ({
         attribute_key: 'labels',
         filter_operator: 'equal_to',
         values: [label],
-        query_operator: 'AND',
+        query_operator: index < labels.length - 1 ? 'AND' : null,
         attribute_model: 'standard',
       }));
 
@@ -91,11 +107,12 @@ export class ChatwootService {
         { params: { page } },
       );
 
-      const conversations = response.data?.data?.payload || [];
+      // Chatwoot pode retornar em response.data.data.payload OU response.data.payload
+      const responseData = response.data?.data || response.data;
+      const conversations = responseData?.payload || [];
       allConversations.push(...conversations);
 
-      // Paginação: Chatwoot retorna 25 por página
-      const totalCount = response.data?.data?.meta?.all_count || 0;
+      const totalCount = responseData?.meta?.all_count || 0;
       const totalPages = Math.ceil(totalCount / 25) || 1;
 
       this.logger.debug(`Page ${page}/${totalPages} — got ${conversations.length} conversations (total: ${totalCount})`);
