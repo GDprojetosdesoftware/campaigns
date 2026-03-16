@@ -86,30 +86,96 @@ export class ChatwootService {
 
   /** Busca conversas paginadas filtrando por label */
   private async getConversationsByLabels(accountId: number, labels: string[]): Promise<any[]> {
+    // Tenta POST /conversations/filter primeiro (formato UI do Chatwoot — SEM attribute_model)
+    try {
+      this.logger.log(`Trying POST /conversations/filter for labels: ${labels.join(', ')}`);
+      const result = await this.fetchConversationsViaFilter(accountId, labels);
+      if (result.length > 0) return result;
+      this.logger.warn(`POST filter returned 0 conversations, trying GET fallback...`);
+    } catch (err) {
+      this.logger.warn(`POST filter failed (${err.response?.status || err.message}), trying GET fallback...`);
+    }
+
+    // Fallback: GET /conversations?labels[]=...
+    try {
+      this.logger.log(`Trying GET /conversations?labels[] for labels: ${labels.join(', ')}`);
+      const result = await this.fetchConversationsViaGet(accountId, labels);
+      return result;
+    } catch (err) {
+      this.logger.error(`GET fallback also failed: ${err.message}`);
+      return [];
+    }
+  }
+
+  private async fetchConversationsViaFilter(accountId: number, labels: string[]): Promise<any[]> {
     const allConversations: any[] = [];
     let page = 1;
 
     while (true) {
-      this.logger.debug(`Fetching conversations with labels ${labels.join(',')} (page ${page})`);
+      // Formato exato que o Chatwoot UI envia — SEM attribute_model
+      const payload = labels.map((label, index) => ({
+        attribute_key: 'labels',
+        filter_operator: 'equal_to',
+        values: [label],
+        query_operator: index < labels.length - 1 ? 'AND' : null,
+      }));
 
-      const response = await this.httpClient.get(
-        `/api/v1/accounts/${accountId}/conversations`,
-        {
-          params: {
-            page,
-            'labels[]': labels,
-          },
-        },
+      this.logger.log(`POST filter page ${page}, payload: ${JSON.stringify({ payload })}`);
+
+      const response = await this.httpClient.post(
+        `/api/v1/accounts/${accountId}/conversations/filter`,
+        { payload },
+        { params: { page } },
       );
+
+      // Log da resposta bruta para debug
+      this.logger.log(`POST filter response keys: ${JSON.stringify(Object.keys(response.data || {}))}`);
+      if (response.data?.data) {
+        this.logger.log(`response.data.data keys: ${JSON.stringify(Object.keys(response.data.data))}`);
+      }
 
       const responseData = response.data?.data || response.data;
       const conversations = responseData?.payload || [];
       allConversations.push(...conversations);
 
-      const totalCount = responseData?.meta?.all_count || 0;
+      const totalCount = responseData?.meta?.all_count ?? conversations.length;
       const totalPages = Math.ceil(totalCount / 25) || 1;
+      this.logger.log(`POST filter page ${page}/${totalPages}: ${conversations.length} conversations (total: ${totalCount})`);
 
-      this.logger.debug(`Page ${page}/${totalPages} — got ${conversations.length} conversations (total: ${totalCount})`);
+      if (page >= totalPages || conversations.length === 0) break;
+      page++;
+    }
+
+    return allConversations;
+  }
+
+  private async fetchConversationsViaGet(accountId: number, labels: string[]): Promise<any[]> {
+    const allConversations: any[] = [];
+    let page = 1;
+
+    while (true) {
+      this.logger.log(`GET conversations page ${page} with labels: ${labels.join(',')}`);
+
+      const response = await this.httpClient.get(
+        `/api/v1/accounts/${accountId}/conversations`,
+        {
+          params: { page, 'labels[]': labels },
+        },
+      );
+
+      // Log da resposta bruta para debug
+      this.logger.log(`GET conversations response keys: ${JSON.stringify(Object.keys(response.data || {}))}`);
+      if (response.data?.data) {
+        this.logger.log(`GET response.data.data keys: ${JSON.stringify(Object.keys(response.data.data))}`);
+      }
+
+      const responseData = response.data?.data || response.data;
+      const conversations = responseData?.payload || [];
+      allConversations.push(...conversations);
+
+      const totalCount = responseData?.meta?.all_count ?? conversations.length;
+      const totalPages = Math.ceil(totalCount / 25) || 1;
+      this.logger.log(`GET page ${page}/${totalPages}: ${conversations.length} conversations (total: ${totalCount})`);
 
       if (page >= totalPages || conversations.length === 0) break;
       page++;
@@ -207,5 +273,120 @@ export class ChatwootService {
       this.logger.error(`Error fetching inboxes: ${error.message}`);
       throw error;
     }
+  }
+
+  /** Endpoint de debug temporário — testa a API de filtro de conversas */
+  async debugFilterApi(accountId: number, labelName: string) {
+    const results: any = {
+      baseURL: this.httpClient.defaults.baseURL,
+      accountId,
+      labelName,
+      tests: {},
+    };
+
+    // Teste 1: POST /conversations/filter SEM attribute_model
+    try {
+      const payload = [
+        {
+          attribute_key: 'labels',
+          filter_operator: 'equal_to',
+          values: [labelName],
+          query_operator: null,
+        },
+      ];
+      const res = await this.httpClient.post(
+        `/api/v1/accounts/${accountId}/conversations/filter`,
+        { payload },
+        { params: { page: 1 } },
+      );
+      results.tests['POST_filter_no_model'] = {
+        status: res.status,
+        dataKeys: Object.keys(res.data || {}),
+        dataDataKeys: res.data?.data ? Object.keys(res.data.data) : null,
+        meta: res.data?.data?.meta || res.data?.meta || null,
+        payloadCount: (res.data?.data?.payload || res.data?.payload || []).length,
+        firstItem: (res.data?.data?.payload || res.data?.payload || [])[0] || null,
+      };
+    } catch (err) {
+      results.tests['POST_filter_no_model'] = {
+        error: true,
+        status: err.response?.status,
+        message: err.message,
+        responseData: err.response?.data,
+      };
+    }
+
+    // Teste 2: POST /conversations/filter COM attribute_model
+    try {
+      const payload = [
+        {
+          attribute_key: 'labels',
+          filter_operator: 'equal_to',
+          values: [labelName],
+          query_operator: null,
+          attribute_model: 'standard',
+        },
+      ];
+      const res = await this.httpClient.post(
+        `/api/v1/accounts/${accountId}/conversations/filter`,
+        { payload },
+        { params: { page: 1 } },
+      );
+      results.tests['POST_filter_with_model'] = {
+        status: res.status,
+        payloadCount: (res.data?.data?.payload || res.data?.payload || []).length,
+        meta: res.data?.data?.meta || res.data?.meta || null,
+      };
+    } catch (err) {
+      results.tests['POST_filter_with_model'] = {
+        error: true,
+        status: err.response?.status,
+        message: err.message,
+        responseData: err.response?.data,
+      };
+    }
+
+    // Teste 3: GET /conversations?labels[]=...
+    try {
+      const res = await this.httpClient.get(
+        `/api/v1/accounts/${accountId}/conversations`,
+        { params: { page: 1, 'labels[]': labelName } },
+      );
+      results.tests['GET_conversations_labels'] = {
+        status: res.status,
+        dataKeys: Object.keys(res.data || {}),
+        dataDataKeys: res.data?.data ? Object.keys(res.data.data) : null,
+        meta: res.data?.data?.meta || res.data?.meta || null,
+        payloadCount: (res.data?.data?.payload || res.data?.payload || []).length,
+      };
+    } catch (err) {
+      results.tests['GET_conversations_labels'] = {
+        error: true,
+        status: err.response?.status,
+        message: err.message,
+      };
+    }
+
+    // Teste 4: GET /conversations SEM filtro (para ver se tem conversas)
+    try {
+      const res = await this.httpClient.get(
+        `/api/v1/accounts/${accountId}/conversations`,
+        { params: { page: 1 } },
+      );
+      results.tests['GET_conversations_all'] = {
+        status: res.status,
+        meta: res.data?.data?.meta || res.data?.meta || null,
+        payloadCount: (res.data?.data?.payload || res.data?.payload || []).length,
+        firstConvLabels: (res.data?.data?.payload || res.data?.payload || [])[0]?.labels || null,
+      };
+    } catch (err) {
+      results.tests['GET_conversations_all'] = {
+        error: true,
+        status: err.response?.status,
+        message: err.message,
+      };
+    }
+
+    return results;
   }
 }

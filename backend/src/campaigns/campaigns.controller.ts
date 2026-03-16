@@ -92,6 +92,17 @@ export class CampaignsController {
     }
   }
 
+  /** Endpoint de debug temporário para testar filtros do Chatwoot */
+  @Get('debug-filter/:label')
+  async debugFilter(@Param('label') label: string) {
+    try {
+      return await this.campaignsService.debugChatwootFilter(label);
+    } catch (error) {
+      this.logger.error(`Debug filter error: ${error.message}`);
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
   @Get()
   findAll() {
     return this.campaignsService.findAll();
