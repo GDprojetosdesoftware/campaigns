@@ -38,26 +38,53 @@ export class ChatwootService {
         attribute_key: 'labels',
         filter_operator: 'equal_to',
         values: [filter],
-        query_operator: 'and',
+        query_operator: 'AND',
         attribute_model: 'standard',
       }));
 
       this.logger.debug(`Filter payload sent to Chatwoot: ${JSON.stringify({ payload })}`);
 
-      const response = await this.httpClient.post(
-        `/api/v1/accounts/${accountId}/contacts/filter`,
-        { payload },
-      );
+      try {
+        const response = await this.httpClient.post(
+          `/api/v1/accounts/${accountId}/contacts/filter`,
+          { payload },
+        );
 
-      const contacts = response.data?.payload || [];
-      this.logger.log(`Chatwoot returned ${contacts.length} contacts for filters: ${filters.join(', ')}`);
+        const contacts = response.data?.payload || [];
+        this.logger.log(`Chatwoot returned ${contacts.length} contacts for filters: ${filters.join(', ')}`);
 
-      if (contacts.length === 0) {
-        this.logger.warn(`No contacts found in Chatwoot for account ${accountId} with labels: ${filters.join(', ')}`);
+        if (contacts.length === 0) {
+          this.logger.warn(`No contacts found in Chatwoot for account ${accountId} with labels: ${filters.join(', ')}`);
+        }
+
+        return contacts; // Array de contatos
+      } catch (err: any) {
+        const status = err.response?.status;
+        const data = err.response?.data;
+        this.logger.error(
+          `Error filtering contacts via /contacts/filter (status ${status}): ${JSON.stringify(data || err.message)}`
+        );
+
+        // Se o servidor do Chatwoot quebrou (5xx), faz fallback local por labels
+        if (status && status >= 500) {
+          this.logger.warn(`Falling back to local label filtering for account ${accountId}.`);
+          const allContacts = await this.getAllContacts(accountId);
+
+          const filteredContacts = allContacts.filter((c: any) =>
+            Array.isArray(c.labels) &&
+            c.labels.some((label: string) => filters.includes(label)),
+          );
+
+          this.logger.log(
+            `Local fallback returned ${filteredContacts.length} contacts for labels: ${filters.join(', ')}`
+          );
+          return filteredContacts;
+        }
+
+        // Para erros 4xx, mantém o comportamento anterior (deixa subir o erro)
+        throw err;
       }
-
-      return contacts; // Array de contatos
-    } catch (error) {
+    } catch (error: any) {
       const errorDetail = error.response?.data ? JSON.stringify(error.response.data) : error.message;
       this.logger.error(`Error filtering contacts in account ${accountId}: ${errorDetail}`);
       throw error;
