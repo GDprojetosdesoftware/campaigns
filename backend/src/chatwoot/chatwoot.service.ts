@@ -90,24 +90,18 @@ export class ChatwootService {
     let page = 1;
 
     while (true) {
-      // Chatwoot exige que o último item tenha query_operator: null
-      const payload = labels.map((label, index) => ({
-        attribute_key: 'labels',
-        filter_operator: 'contains',
-        values: [label],
-        query_operator: index < labels.length - 1 ? 'AND' : null,
-        attribute_model: 'standard',
-      }));
+      this.logger.debug(`Fetching conversations with labels ${labels.join(',')} (page ${page})`);
 
-      this.logger.debug(`Conversations filter payload (page ${page}): ${JSON.stringify({ payload })}`);
-
-      const response = await this.httpClient.post(
-        `/api/v1/accounts/${accountId}/conversations/filter`,
-        { payload },
-        { params: { page } },
+      const response = await this.httpClient.get(
+        `/api/v1/accounts/${accountId}/conversations`,
+        {
+          params: {
+            page,
+            'labels[]': labels,
+          },
+        },
       );
 
-      // Chatwoot pode retornar em response.data.data.payload OU response.data.payload
       const responseData = response.data?.data || response.data;
       const conversations = responseData?.payload || [];
       allConversations.push(...conversations);
