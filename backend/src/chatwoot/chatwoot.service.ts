@@ -93,7 +93,7 @@ export class ChatwootService {
       // Chatwoot exige que o último item tenha query_operator: null
       const payload = labels.map((label, index) => ({
         attribute_key: 'labels',
-        filter_operator: 'equal_to',
+        filter_operator: 'contains',
         values: [label],
         query_operator: index < labels.length - 1 ? 'AND' : null,
         attribute_model: 'standard',
