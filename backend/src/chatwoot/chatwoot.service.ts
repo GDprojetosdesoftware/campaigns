@@ -32,63 +32,79 @@ export class ChatwootService {
         return this.getAllContacts(accountId);
       }
 
-      this.logger.log(`Filtering contacts for account ${accountId} with tags: ${filters.join(', ')}`);
-      
-      const payload = filters.map((filter) => ({
-        attribute_key: 'labels',
-        filter_operator: 'equal_to',
-        values: [filter],
-        query_operator: 'AND',
-        attribute_model: 'standard',
-      }));
+      this.logger.log(`Filtering contacts via CONVERSATIONS for account ${accountId} with labels: ${filters.join(', ')}`);
 
-      this.logger.debug(`Filter payload sent to Chatwoot: ${JSON.stringify({ payload })}`);
+      // ── ESTRATÉGIA: Labels pertencem a CONVERSAS, não a contatos ──
+      // 1. Buscar conversas que possuem essas labels
+      const conversations = await this.getConversationsByLabels(accountId, filters);
+      this.logger.log(`Found ${conversations.length} conversations with labels: ${filters.join(', ')}`);
 
-      try {
-        const response = await this.httpClient.post(
-          `/api/v1/accounts/${accountId}/contacts/filter`,
-          { payload },
-        );
-
-        const contacts = response.data?.payload || [];
-        this.logger.log(`Chatwoot returned ${contacts.length} contacts for filters: ${filters.join(', ')}`);
-
-        if (contacts.length === 0) {
-          this.logger.warn(`No contacts found in Chatwoot for account ${accountId} with labels: ${filters.join(', ')}`);
+      // 2. Extrair contatos únicos (dedup por id)
+      const contactMap = new Map<number, any>();
+      for (const conversation of conversations) {
+        const sender = conversation.meta?.sender;
+        if (sender?.id && !contactMap.has(sender.id)) {
+          contactMap.set(sender.id, {
+            id: sender.id,
+            name: sender.name || '',
+            phone_number: sender.phone_number || '',
+            email: sender.email || '',
+          });
         }
-
-        return contacts; // Array de contatos
-      } catch (err: any) {
-        const status = err.response?.status;
-        const data = err.response?.data;
-        this.logger.error(
-          `Error filtering contacts via /contacts/filter (status ${status}): ${JSON.stringify(data || err.message)}`
-        );
-
-        // Se o servidor do Chatwoot quebrou (5xx), faz fallback local por labels
-        if (status && status >= 500) {
-          this.logger.warn(`Falling back to local label filtering for account ${accountId}.`);
-          const allContacts = await this.getAllContacts(accountId);
-
-          const filteredContacts = allContacts.filter((c: any) =>
-            Array.isArray(c.labels) &&
-            c.labels.some((label: string) => filters.includes(label)),
-          );
-
-          this.logger.log(
-            `Local fallback returned ${filteredContacts.length} contacts for labels: ${filters.join(', ')}`
-          );
-          return filteredContacts;
-        }
-
-        // Para erros 4xx, mantém o comportamento anterior (deixa subir o erro)
-        throw err;
       }
-    } catch (error: any) {
+
+      // 3. Filtrar apenas quem tem telefone válido
+      const contacts = [...contactMap.values()].filter(c => c.phone_number);
+      this.logger.log(`Extracted ${contactMap.size} unique contacts, ${contacts.length} with phone number`);
+
+      if (contacts.length === 0) {
+        this.logger.warn(`No contacts with phone found for account ${accountId} with labels: ${filters.join(', ')}`);
+      }
+
+      return contacts;
+    } catch (error) {
       const errorDetail = error.response?.data ? JSON.stringify(error.response.data) : error.message;
       this.logger.error(`Error filtering contacts in account ${accountId}: ${errorDetail}`);
       throw error;
     }
+  }
+
+  /** Busca conversas paginadas filtrando por label */
+  private async getConversationsByLabels(accountId: number, labels: string[]): Promise<any[]> {
+    const allConversations: any[] = [];
+    let page = 1;
+
+    while (true) {
+      const payload = labels.map((label) => ({
+        attribute_key: 'labels',
+        filter_operator: 'equal_to',
+        values: [label],
+        query_operator: 'AND',
+        attribute_model: 'standard',
+      }));
+
+      this.logger.debug(`Conversations filter payload (page ${page}): ${JSON.stringify({ payload })}`);
+
+      const response = await this.httpClient.post(
+        `/api/v1/accounts/${accountId}/conversations/filter`,
+        { payload },
+        { params: { page } },
+      );
+
+      const conversations = response.data?.data?.payload || [];
+      allConversations.push(...conversations);
+
+      // Paginação: Chatwoot retorna 25 por página
+      const totalCount = response.data?.data?.meta?.all_count || 0;
+      const totalPages = Math.ceil(totalCount / 25) || 1;
+
+      this.logger.debug(`Page ${page}/${totalPages} — got ${conversations.length} conversations (total: ${totalCount})`);
+
+      if (page >= totalPages || conversations.length === 0) break;
+      page++;
+    }
+
+    return allConversations;
   }
 
   /** Busca todos os contatos paginando até o fim */
