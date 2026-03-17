@@ -39,31 +39,47 @@ export class ChatwootService {
       const conversations = await this.getConversationsByLabels(accountId, filters);
       this.logger.log(`Found ${conversations.length} conversations with labels: ${filters.join(', ')}`);
 
-      // 2. Extrair IDs de contatos únicos das conversas
-      const contactIds = new Set<number>();
+      // 2. Extrair IDs de contatos únicos das conversas + phone da conversa (fallback)
+      const contactMap = new Map<number, { phone?: string }>();
       for (const conversation of conversations) {
         const senderId = conversation.meta?.sender?.id;
-        if (senderId) {
-          contactIds.add(senderId);
+        if (senderId && !contactMap.has(senderId)) {
+          // Tenta extrair phone do sender da conversa (fallback)
+          const senderPhone = conversation.meta?.sender?.phone_number || null;
+          contactMap.set(senderId, { phone: senderPhone });
         }
       }
-      this.logger.log(`Extracted ${contactIds.size} unique contact IDs from conversations`);
+      this.logger.log(`Extracted ${contactMap.size} unique contact IDs from conversations`);
 
-      // 3. Buscar dados completos de cada contato (meta.sender NÃO traz phone_number)
+      // 3. Buscar dados completos de cada contato
       const contacts: any[] = [];
-      for (const contactId of contactIds) {
+      for (const [contactId, cached] of contactMap) {
         try {
           const res = await this.httpClient.get(
             `/api/v1/accounts/${accountId}/contacts/${contactId}`,
           );
-          const contact = res.data;
-          if (contact?.phone_number) {
+          const raw = res.data;
+          
+          // Log detalhado para debug — mostra todos os campos do contato
+          this.logger.log(`Contact ${contactId} raw keys: ${JSON.stringify(Object.keys(raw || {}))}`);
+          this.logger.log(`Contact ${contactId} phone_number: "${raw?.phone_number}", identifier: "${raw?.identifier}", name: "${raw?.name}"`);
+
+          // Tenta extrair phone de vários campos possíveis
+          const phoneNumber =
+            raw?.phone_number ||               // campo padrão
+            raw?.identifier ||                  // WhatsApp pode usar identifier
+            cached.phone ||                     // meta.sender da conversa
+            null;
+
+          if (phoneNumber) {
             contacts.push({
-              id: contact.id,
-              name: contact.name || '',
-              phone_number: contact.phone_number,
-              email: contact.email || '',
+              id: raw?.id || contactId,
+              name: raw?.name || '',
+              phone_number: phoneNumber,
+              email: raw?.email || '',
             });
+          } else {
+            this.logger.warn(`Contact ${contactId} has no phone in any field. Full data: ${JSON.stringify(raw).substring(0, 500)}`);
           }
         } catch (err) {
           this.logger.warn(`Could not fetch contact ${contactId}: ${err.message}`);
