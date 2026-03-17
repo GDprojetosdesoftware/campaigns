@@ -48,6 +48,13 @@ export default function CampaignsPage() {
     const deliveryRate = totalContacts > 0 ? (totalSent / totalContacts) * 100 : 0;
     const activeCampaigns = campaigns.filter(c => c.status === 'processing').length;
 
+    // Debug para monitorar campanhas ativas
+    useEffect(() => {
+        console.log('Campanhas:', campaigns);
+        console.log('Campanhas Ativas (processing):', campaigns.filter(c => c.status === 'processing'));
+        console.log('Total de Campanhas Ativas:', activeCampaigns);
+    }, [campaigns]);
+
     const fetchCampaigns = async () => {
         setError(null);
         try {
@@ -78,29 +85,31 @@ export default function CampaignsPage() {
     useEffect(() => {
         fetchCampaigns();
         setLoading(false);
+    }, []);
 
-        // Auto-refresh a cada 3 segundos para atualizar o contador "Campanhas Ativas" em tempo real
-        const interval = setInterval(() => {
-            // Fetch silencioso sem mostrar loading
-            apiFetch('/campaigns')
-                .then(res => res.ok ? res.json() : null)
-                .then(data => {
-                    if (data) {
-                        const formattedCampaigns: Campaign[] = data.map((camp: CampaignData) => ({
-                            id: camp.id,
-                            name: camp.name,
-                            status: camp.status,
-                            total: camp.totalContacts || 0,
-                            sent: camp.sentSuccess || 0,
-                            error: camp.sentError || 0,
-                            date: new Date(camp.createdAt).toLocaleDateString('pt-BR'),
-                            type: 'WhatsApp',
-                            instance_name: camp.evolutionInstance || (camp as any).evolution_instance || "default"
-                        }));
-                        setCampaigns(formattedCampaigns);
-                    }
-                })
-                .catch(err => console.error('Auto-refresh error:', err));
+    // Auto-refresh a cada 3 segundos para atualizar o contador "Campanhas Ativas"
+    useEffect(() => {
+        const interval = setInterval(async () => {
+            try {
+                const res = await apiFetch('/campaigns');
+                if (res.ok) {
+                    const data = await res.json();
+                    const formattedCampaigns: Campaign[] = data.map((camp: CampaignData) => ({
+                        id: camp.id,
+                        name: camp.name,
+                        status: camp.status,
+                        total: camp.totalContacts || 0,
+                        sent: camp.sentSuccess || 0,
+                        error: camp.sentError || 0,
+                        date: new Date(camp.createdAt).toLocaleDateString('pt-BR'),
+                        type: 'WhatsApp',
+                        instance_name: camp.evolutionInstance || (camp as any).evolution_instance || "default"
+                    }));
+                    setCampaigns(formattedCampaigns);
+                }
+            } catch (err) {
+                console.error('Auto-refresh error:', err);
+            }
         }, 3000);
         
         return () => clearInterval(interval);
