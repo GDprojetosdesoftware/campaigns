@@ -39,12 +39,20 @@ export class CampaignProcessor extends WorkerHost {
       );
 
       // 2. Envia via Evolution API
-      // Nota: o número do contato deve estar no formato internacional
+      // Substitui placeholders na mensagem
       const phone = contact.phone_number.replace('+', '');
+      const contactName = contact.name || '';
+      const personalizedMessage = campaign.message
+        .replace(/\{\{name\}\}/gi, contactName)
+        .replace(/\{\{phone\}\}/gi, contact.phone_number || '')
+        .replace(/\{\{email\}\}/gi, contact.email || '');
+
+      this.logger.log(`Sending to ${phone}: "${personalizedMessage.substring(0, 50)}..."`);
+
       await this.evolutionService.sendMessage(
         campaign.evolutionInstance,
         phone,
-        campaign.message,
+        personalizedMessage,
       );
 
       // 3. Atualiza Kanban (Opcional - Configurável)
