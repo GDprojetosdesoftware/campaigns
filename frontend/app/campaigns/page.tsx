@@ -514,64 +514,6 @@ export default function CampaignsPage() {
                                     )
                                 )
                             )}
-                                                                <Link
-                                                                    href={`/campaigns/${camp.id}/edit`}
-                                                                    className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                                                                    onClick={() => setActionMenu(null)}
-                                                                >
-                                                                    <Pencil size={15} className="text-blue-500" />
-                                                                    Editar
-                                                                </Link>
-                                                                <button
-                                                                    onClick={() => handleDuplicate(camp.id)}
-                                                                    disabled={actionLoading === camp.id + '-dup'}
-                                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50 text-left"
-                                                                >
-                                                                    <Copy size={15} className="text-green-500" />
-                                                                    {actionLoading === camp.id + '-dup' ? 'Duplicando...' : 'Duplicar'}
-                                                                </button>
-                                                                <div className="border-t border-gray-100 dark:border-white/5" />
-                                                                <button
-                                                                    onClick={() => { setDeleteConfirm(camp.id); setActionMenu(null); }}
-                                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors text-left"
-                                                                >
-                                                                    <Trash2 size={15} />
-                                                                    Excluir
-                                                                </button>
-                                                            </motion.div>
-                                                        )}
-                                                    </AnimatePresence>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-3 gap-4 mb-6">
-                                            <div className="bg-gray-50 dark:bg-white/5 p-3 rounded-2xl border border-gray-100 dark:border-white/5 transition-colors group-hover:bg-white dark:group-hover:bg-white/10">
-                                                <p className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider mb-1">Total</p>
-                                                <p className="text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">{camp.total}</p>
-                                            </div>
-                                            <div className="bg-green-50/50 dark:bg-green-500/5 p-3 rounded-2xl border border-green-100/50 dark:border-green-500/10 transition-colors group-hover:bg-green-50 dark:group-hover:bg-green-500/10">
-                                                <p className="text-[10px] uppercase font-bold tracking-wider mb-1 text-green-600 dark:text-green-500/70">Sucesso</p>
-                                                <p className="text-xl font-bold tracking-tight text-green-600 dark:text-green-400">{camp.sent}</p>
-                                            </div>
-                                            <div className={`${camp.error > 0 ? 'bg-red-50/50 dark:bg-red-500/5 border-red-100/50 dark:border-red-500/10' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-white/5'} p-3 rounded-2xl border transition-colors group-hover:bg-red-50 dark:group-hover:bg-red-500/10`}>
-                                                <p className={`text-[10px] uppercase font-bold tracking-wider mb-1 ${camp.error > 0 ? 'text-red-600 dark:text-red-500/70' : 'text-gray-400 dark:text-gray-500'}`}>Falhas</p>
-                                                <p className={`text-xl font-bold tracking-tight ${camp.error > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>{camp.error}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-8 pt-6 border-t border-gray-100 dark:border-white/5 flex justify-between items-center text-xs font-medium">
-                                            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                                                <div className="p-1 bg-gray-100 dark:bg-white/5 rounded-full">
-                                                    <StatusIcon status={camp.status} />
-                                                </div>
-                                                {camp.date}
-                                            </div>
-                                            <StatusBadge status={camp.status} />
-                                        </div>
-                                    </motion.div>
-                                ))
-                            )}
                         </AnimatePresence>
                     </div>
                 </section>
