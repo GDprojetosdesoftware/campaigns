@@ -39,14 +39,15 @@ export class ChatwootService {
       const conversations = await this.getConversationsByLabels(accountId, filters);
       this.logger.log(`Found ${conversations.length} conversations with labels: ${filters.join(', ')}`);
 
-      // 2. Extrair IDs de contatos únicos das conversas + phone da conversa (fallback)
-      const contactMap = new Map<number, { phone?: string }>();
+      // 2. Extrair IDs de contatos únicos das conversas + dados da conversa (fallback)
+      const contactMap = new Map<number, { phone?: string; name?: string }>();
       for (const conversation of conversations) {
         const senderId = conversation.meta?.sender?.id;
         if (senderId && !contactMap.has(senderId)) {
-          // Tenta extrair phone do sender da conversa (fallback)
+          // Extrai phone e nome do sender da conversa como fallback
           const senderPhone = conversation.meta?.sender?.phone_number || null;
-          contactMap.set(senderId, { phone: senderPhone });
+          const senderName = conversation.meta?.sender?.name || null;
+          contactMap.set(senderId, { phone: senderPhone, name: senderName });
         }
       }
       this.logger.log(`Extracted ${contactMap.size} unique contact IDs from conversations`);
@@ -58,11 +59,16 @@ export class ChatwootService {
           const res = await this.httpClient.get(
             `/api/v1/accounts/${accountId}/contacts/${contactId}`,
           );
-          const raw = res.data;
+          let raw = res.data;
           
-          // Log detalhado para debug — mostra todos os campos do contato
+          // Chatwoot pode retornar nested — ex: { payload: {...} }
+          if (raw && !raw.id && (raw.payload || raw.contact)) {
+            raw = raw.payload || raw.contact;
+          }
+          
+          // Log detalhado para debug
           this.logger.log(`Contact ${contactId} raw keys: ${JSON.stringify(Object.keys(raw || {}))}`);
-          this.logger.log(`Contact ${contactId} phone_number: "${raw?.phone_number}", identifier: "${raw?.identifier}", name: "${raw?.name}"`);
+          this.logger.log(`Contact ${contactId} phone_number: "${raw?.phone_number}", identifier: "${raw?.identifier}", name: "${raw?.name}", cached_name: "${cached.name}"`);
 
           // Tenta extrair phone de vários campos possíveis
           const phoneNumber =
@@ -71,13 +77,21 @@ export class ChatwootService {
             cached.phone ||                     // meta.sender da conversa
             null;
 
+          // Tenta extrair nome de vários campos possíveis
+          const contactName =
+            raw?.name ||                        // campo padrão da API
+            cached.name ||                      // meta.sender.name da conversa
+            raw?.available_name ||              // campo alternativo do Chatwoot
+            '';
+
           if (phoneNumber) {
             contacts.push({
               id: raw?.id || contactId,
-              name: raw?.name || '',
+              name: contactName,
               phone_number: phoneNumber,
               email: raw?.email || '',
             });
+            this.logger.log(`Contact ${contactId}: name="${contactName}", phone="${phoneNumber}"`);
           } else {
             this.logger.warn(`Contact ${contactId} has no phone in any field. Full data: ${JSON.stringify(raw).substring(0, 500)}`);
           }
