@@ -78,13 +78,30 @@ export default function CampaignsPage() {
     useEffect(() => {
         fetchCampaigns();
         setLoading(false);
-    }, []);
 
-    // Auto-refresh a cada 5 segundos para atualizar o contador "Campanhas Ativas"
-    useEffect(() => {
+        // Auto-refresh a cada 3 segundos para atualizar o contador "Campanhas Ativas" em tempo real
         const interval = setInterval(() => {
-            fetchCampaigns();
-        }, 5000);
+            // Fetch silencioso sem mostrar loading
+            apiFetch('/campaigns')
+                .then(res => res.ok ? res.json() : null)
+                .then(data => {
+                    if (data) {
+                        const formattedCampaigns: Campaign[] = data.map((camp: CampaignData) => ({
+                            id: camp.id,
+                            name: camp.name,
+                            status: camp.status,
+                            total: camp.totalContacts || 0,
+                            sent: camp.sentSuccess || 0,
+                            error: camp.sentError || 0,
+                            date: new Date(camp.createdAt).toLocaleDateString('pt-BR'),
+                            type: 'WhatsApp',
+                            instance_name: camp.evolutionInstance || (camp as any).evolution_instance || "default"
+                        }));
+                        setCampaigns(formattedCampaigns);
+                    }
+                })
+                .catch(err => console.error('Auto-refresh error:', err));
+        }, 3000);
         
         return () => clearInterval(interval);
     }, []);
@@ -155,11 +172,13 @@ export default function CampaignsPage() {
                     <Send size={22} className="text-white" />
                 </div>
                 <nav className="flex flex-col gap-6">
-                    <div className="p-3 bg-gray-100 dark:bg-white/5 rounded-xl text-blue-600 dark:text-blue-400"><LayoutGrid size={22} /></div>
+                    <div className={`p-3 rounded-xl cursor-pointer transition-colors ${viewMode === 'grid' ? 'bg-gray-100 dark:bg-white/5 text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'}`} onClick={() => setViewMode('grid')} title="Visualização em grid">
+                        <LayoutGrid size={22} />
+                    </div>
                     <div 
-                        onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                        className="p-3 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors cursor-pointer rounded-xl hover:bg-gray-100 dark:hover:bg-white/5" 
-                        title="Alternar visualização"
+                        onClick={() => setViewMode('list')}
+                        className={`p-3 rounded-xl cursor-pointer transition-colors ${viewMode === 'list' ? 'bg-gray-100 dark:bg-white/5 text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'}`}
+                        title="Visualização em lista"
                     >
                         <List size={22} />
                     </div>
