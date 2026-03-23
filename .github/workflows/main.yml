@@ -22,6 +22,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase Repository Name
+        id: repo
+        run: echo "name=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
+
       - name: Build and Push Backend
         uses: docker/build-push-action@v5
         with:
@@ -29,7 +33,7 @@ jobs:
           file: ./backend/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/backend:latest
+            ghcr.io/${{ steps.repo.outputs.name }}/backend:latest
 
       - name: Build and Push Frontend
         uses: docker/build-push-action@v5
@@ -38,5 +42,6 @@ jobs:
           file: ./frontend/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/frontend:latest
+            ghcr.io/${{ steps.repo.outputs.name }}/frontend:latest
+
 

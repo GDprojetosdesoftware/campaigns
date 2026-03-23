@@ -181,7 +181,8 @@ services:
       - shared_network
 
   campaign-backend:
-    image: ghcr.io/gdprojetosdesoftware/campanhas/backend:latest
+    image: ghcr.io/gdprojetosdesoftware/campaigns/backend:latest
+
     container_name: ${INSTANCE_NAME}_campaign_backend
     restart: always
     environment:
@@ -198,7 +199,8 @@ services:
       - shared_network
 
   campaign-frontend:
-    image: ghcr.io/gdprojetosdesoftware/campanhas/frontend:latest
+    image: ghcr.io/gdprojetosdesoftware/campaigns/frontend:latest
+
     container_name: ${INSTANCE_NAME}_campaign_frontend
     restart: always
     environment:
