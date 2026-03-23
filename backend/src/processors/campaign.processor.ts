@@ -38,22 +38,23 @@ export class CampaignProcessor extends WorkerHost {
         contact.id,
       );
 
-      // 2. Envia via Evolution API
+      // 2. Envia via Chatwoot (Unificado)
       // Substitui placeholders na mensagem
-      const phone = contact.phone_number.replace('+', '');
       const contactName = contact.name || '';
       const personalizedMessage = campaign.message
         .replace(/\{\{name\}\}/gi, contactName)
         .replace(/\{\{phone\}\}/gi, contact.phone_number || '')
         .replace(/\{\{email\}\}/gi, contact.email || '');
 
-      this.logger.log(`Sending to ${phone}: "${personalizedMessage.substring(0, 50)}..."`);
+      const phone = contact.phone_number ? contact.phone_number.replace('+', '') : 'unknown';
+      this.logger.log(`Sending via Chatwoot structure for contact ${contact.id} (${phone}): "${personalizedMessage.substring(0, 50)}..."`);
 
-      await this.evolutionService.sendMessage(
-        campaign.evolutionInstance,
-        phone,
+      await this.chatwootService.sendMessage(
+        campaign.accountId,
+        conversation.id,
         personalizedMessage,
       );
+
 
       // 3. Atualiza Kanban (Opcional - Configurável)
       // Ex: Move para a coluna "Mensagem Enviada" no seu script customizado

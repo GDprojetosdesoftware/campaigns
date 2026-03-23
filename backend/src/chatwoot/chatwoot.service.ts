@@ -305,6 +305,25 @@ export class ChatwootService {
     }
   }
 
+  async sendMessage(accountId: number, conversationId: number, content: string) {
+    try {
+      this.logger.log(`Sending message to conversation ${conversationId} for account ${accountId}`);
+      const response = await this.httpClient.post(
+        `/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`,
+        {
+          content,
+          message_type: 'outgoing',
+        },
+      );
+      return response.data;
+    } catch (error) {
+      const errorDetail = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+      this.logger.error(`Error sending message in conversation ${conversationId}: ${errorDetail}`);
+      throw error;
+    }
+  }
+
+
   /** Endpoint de debug temporário — testa a API de filtro de conversas */
   async debugFilterApi(accountId: number, labelName: string) {
     const results: any = {

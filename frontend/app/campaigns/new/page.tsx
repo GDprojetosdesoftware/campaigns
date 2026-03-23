@@ -94,8 +94,9 @@ export default function NewCampaignPage() {
                     message: formData.message,
                     filters: selectedLabels,
                     inboxId: parseInt(formData.inboxId),
-                    evolutionInstance: formData.instance
+                    evolutionInstance: 'default'
                 }),
+
             });
 
             if (response.ok) {
@@ -203,42 +204,18 @@ export default function NewCampaignPage() {
                                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                             />
                                         </div>
-                                        <div className="group">
-                                            <label className="text-[10px] uppercase font-bold text-gray-400 tracking-widest pl-1 mb-2 block group-focus-within:text-blue-500 transition-colors">Instância Evolution (WhatsApp)</label>
-                                            <div className="relative">
-                                                <select
-                                                    required
-                                                    className="w-full bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-2xl px-6 py-4 text-lg focus:border-blue-500/50 outline-none transition-all appearance-none cursor-pointer"
-                                                    value={formData.instance}
-                                                    onChange={(e) => setFormData({ ...formData, instance: e.target.value })}
-                                                >
-                                                    <option value="" disabled hidden>Selecione uma instância...</option>
-                                                    {isLoadingInstances ? (
-                                                        <option disabled>Carregando instâncias...</option>
-                                                    ) : (
-                                                        instances.map((inst: any, idx: number) => {
-                                                            const name = inst?.instance?.instanceName || inst?.name || inst?.instanceName || (typeof inst === 'string' ? inst : `Instância ${idx + 1}`);
-                                                            const status = inst?.instance?.status || inst?.status || inst?.connectionStatus || "";
-                                                            return (
-                                                                <option key={name + idx} value={name}>
-                                                                    {name} {status ? `(${status})` : ''}
-                                                                </option>
-                                                            );
-                                                        })
-                                                    )}
-                                                </select>
-                                                <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-gray-400 pointer-events-none" size={20} />
-                                            </div>
-                                        </div>
+                                        {/* Campo de Instância removido (envio via Chatwoot) */}
+
                                     </div>
                                 </div>
                                 <div className="flex justify-end pt-4">
                                     <button 
                                         type="button" 
                                         onClick={nextStep} 
-                                        disabled={!formData.name || !formData.instance}
+                                        disabled={!formData.name}
                                         className="bg-blue-600 dark:bg-blue-600 text-white px-10 py-4 rounded-full font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 disabled:opacity-50 disabled:grayscale transition-all flex items-center gap-2 group"
                                     >
+
                                         Próximo Passo <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
                                     </button>
                                 </div>

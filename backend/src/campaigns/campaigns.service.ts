@@ -32,8 +32,8 @@ export class CampaignsService {
       if (!accountId) {
         throw new BadRequestException('CHATWOOT_ACCOUNT_ID is required (check environment variables)');
       }
-      if (!name || !message || !inboxId || !evolutionInstance) {
-        throw new BadRequestException('Fields name, message, inboxId, and evolutionInstance are required');
+      if (!name || !message || !inboxId) {
+        throw new BadRequestException('Fields name, message, and inboxId are required');
       }
 
       this.logger.log(`Saving campaign in database as PENDING.`);
@@ -44,8 +44,9 @@ export class CampaignsService {
         filters,
         accountId: Number(accountId),
         inboxId: Number(inboxId),
-        evolutionInstance: evolutionInstance?.trim(),
+        evolutionInstance: evolutionInstance?.trim() || 'default',
         status: CampaignStatus.PENDING,
+
         totalContacts: 0,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       });
