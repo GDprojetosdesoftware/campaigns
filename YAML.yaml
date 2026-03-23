@@ -1,0 +1,234 @@
+version: '3.8'
+
+# ==========================================
+#  CONFIGURAÇÕES GLOBAIS (Dinâmicas)
+# ==========================================
+x-kanbancw-config: &kanbancw-config
+  KANBANCW_DOMAIN: ${KANBAN_DOMAIN}
+  CHATWOOT_DOMAIN: ${CHATWOOT_DOMAIN}
+  KANBANCW_URL: https://${KANBAN_DOMAIN}
+  CHATWOOT_API_URL: https://${CHATWOOT_DOMAIN}
+  CORS_ORIGIN: https://${KANBAN_DOMAIN},https://${CHATWOOT_DOMAIN}
+
+x-crm-config: &crm-config
+  FRONTEND_URL: https://${CHATWOOT_DOMAIN}
+  KANBAN_APP_URL: https://${KANBAN_DOMAIN}/
+  KANBAN_API_URL: https://${KANBAN_DOMAIN}/api
+
+services:
+  # ==========================================
+  #  STACK 1: CRM (Chatwoot)
+  # ==========================================
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: ${INSTANCE_NAME}_crm_postgres
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: crm_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: 5497c27f795da40188ba
+    networks:
+      - shared_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ${INSTANCE_NAME}_crm_redis
+    restart: always
+    command: ["redis-server", "--requirepass", "5497c27f795da40188ba", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - shared_network
+
+  web:
+    image: ghcr.io/gdprojetosdesoftware/crm:latest
+    container_name: ${INSTANCE_NAME}_crm_web
+    restart: always
+    command: ["/bin/sh", "-c", "bundle exec rake db:chatwoot_prepare || true && bundle exec rails s -p 3000 -b 0.0.0.0"]
+    volumes:
+      - crm_storage:/app/storage
+    environment:
+      <<: *crm-config
+      NODE_ENV: production
+      RAILS_ENV: production
+      INSTALLATION_ENV: docker
+      SECRET_KEY_BASE: 9de95cbe96ada604
+      DEFAULT_LOCALE: pt_BR
+      TZ: America/Sao_Paulo
+      FORCE_SSL: "false"
+      ENABLE_ACCOUNT_SIGNUP: "true"
+      POSTGRES_DATABASE: crm_db
+      POSTGRES_HOST: postgres
+      POSTGRES_USERNAME: admin
+      POSTGRES_PASSWORD: 5497c27f795da40188ba
+      POSTGRES_PORT: 5432
+      REDIS_URL: redis://:5497c27f795da40188ba@redis:6379/1
+      RAILS_MAX_THREADS: 5
+      LOG_LEVEL: info
+      STORAGE_SERVICE: local
+      SMTP_ADDRESS: smtp.uni5.net
+      SMTP_PORT: 587
+      SMTP_AUTHENTICATION: plain
+      SMTP_DOMAIN: ranoverchat.com.br
+      SMTP_ENABLE_STARTTLS_AUTO: "true"
+      SMTP_OPENSSL_VERIFY_MODE: peer
+      SMTP_USER_NAME: aitools@ranoverchat.com.br
+      SMTP_PASSWORD: Dfs4#8Tr665@6GerR
+      MAILER_SENDER_EMAIL: aitools@ranoverchat.com.br
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - shared_network
+
+  worker:
+    image: ghcr.io/gdprojetosdesoftware/crm:latest
+    container_name: ${INSTANCE_NAME}_crm_worker
+    restart: always
+    command: bundle exec sidekiq -C config/sidekiq.yml
+    volumes:
+      - crm_storage:/app/storage
+    environment:
+      <<: *crm-config
+      NODE_ENV: production
+      RAILS_ENV: production
+      INSTALLATION_ENV: docker
+      SECRET_KEY_BASE: 9de95cbe96ada604
+      TZ: America/Sao_Paulo
+      POSTGRES_DATABASE: crm_db
+      POSTGRES_HOST: postgres
+      POSTGRES_USERNAME: admin
+      POSTGRES_PASSWORD: 5497c27f795da40188ba
+      POSTGRES_PORT: 5432
+      REDIS_URL: redis://:5497c27f795da40188ba@redis:6379/1
+      SMTP_ADDRESS: smtp.uni5.net
+      SMTP_PORT: 587
+      SMTP_AUTHENTICATION: plain
+      SMTP_DOMAIN: ranoverchat.com.br
+      SMTP_ENABLE_STARTTLS_AUTO: "true"
+      SMTP_OPENSSL_VERIFY_MODE: peer
+      SMTP_USER_NAME: aitools@ranoverchat.com.br
+      SMTP_PASSWORD: Dfs4#8Tr665@6GerR
+      MAILER_SENDER_EMAIL: aitools@ranoverchat.com.br
+    depends_on:
+      - postgres
+      - redis
+      - web
+    networks:
+      - shared_network
+
+  # ==========================================
+  #  STACK 2: KANBAN (Astraonline)
+  # ==========================================
+  postgres-kanban:
+    image: postgres:16-alpine
+    container_name: ${INSTANCE_NAME}_kanban_postgres
+    environment:
+      POSTGRES_DB: kanbancw
+      POSTGRES_USER: kanbancw
+      POSTGRES_PASSWORD: kanbancw_secret_2024
+    volumes:
+      - kanbancw-postgres:/var/lib/postgresql/data
+    networks:
+      - shared_network
+
+  backend:
+    image: astraonline/kanbanback:0.0.6
+    container_name: ${INSTANCE_NAME}_kanban_backend
+    environment:
+      <<: *kanbancw-config
+      NODE_ENV: production
+      PORT: 3333 
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://kanbancw:kanbancw_secret_2024@postgres-kanban:5432/kanbancw?schema=public
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - kanbancw-uploads:/app/uploads
+    depends_on:
+      - postgres-kanban
+    networks:
+      - shared_network
+
+  frontend:
+    image: astraonline/kanbanfront:0.0.6
+    container_name: ${INSTANCE_NAME}_kanban_frontend
+    environment:
+      <<: *kanbancw-config
+    networks:
+      - shared_network
+
+  # ==========================================
+  #  STACK 3: CAMPANHAS
+  # ==========================================
+  postgres-campaigns:
+    image: postgres:15-alpine
+    container_name: ${INSTANCE_NAME}_campaign_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: campanhas_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_CAMPAIGN:-postgres}
+    volumes:
+      - campaigns-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shared_network
+
+  campaign-backend:
+    image: ghcr.io/gdprojetosdesoftware/campanhas/backend:latest
+    container_name: ${INSTANCE_NAME}_campaign_backend
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD_CAMPAIGN:-postgres}@postgres-campaigns:5432/campanhas_db
+      - CHATWOOT_API_URL=https://${CHATWOOT_DOMAIN}
+      - CHATWOOT_API_TOKEN=${CHATWOOT_API_TOKEN}
+      - CHATWOOT_ACCOUNT_ID=${CHATWOOT_ACCOUNT_ID}
+      - REDIS_URL=redis://:5497c27f795da40188ba@redis:6379/2
+    depends_on:
+      - postgres-campaigns
+      - redis
+    networks:
+      - shared_network
+
+  campaign-frontend:
+    image: ghcr.io/gdprojetosdesoftware/campanhas/frontend:latest
+    container_name: ${INSTANCE_NAME}_campaign_frontend
+    restart: always
+    environment:
+      - NEXT_PUBLIC_API_URL=https://${CAMPAIGN_BACKEND_DOMAIN}
+      - NODE_ENV=production
+    depends_on:
+      - campaign-backend
+    networks:
+      - shared_network
+
+
+# ==========================================
+#  VOLUMES & REDES (Dinâmicos)
+# ==========================================
+volumes:
+  postgres_data:
+    name: ${INSTANCE_NAME}_postgres_data
+  redis_data:
+    name: ${INSTANCE_NAME}_redis_data
+  crm_storage:
+    name: ${INSTANCE_NAME}_crm_storage
+  kanbancw-postgres:
+    name: ${INSTANCE_NAME}_kanbancw_postgres
+  kanbancw-uploads:
+    name: ${INSTANCE_NAME}_kanbancw_uploads
+  campaigns-postgres:
+    name: ${INSTANCE_NAME}_campaigns_postgres
+
+
+networks:
+  shared_network:
+    external: true
+    name: ${NETWORK_NAME}

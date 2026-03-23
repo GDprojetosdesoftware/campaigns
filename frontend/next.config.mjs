@@ -5,8 +5,9 @@ const nextConfig = {
       {
         // Proxy all /api/* requests to the backend container (or NEXT_PUBLIC_API_URL if defined)
         source: '/api/:path*',
-        destination: `${process.env.API_URL || 'http://backend:3000'}/:path*`,
+        destination: `${process.env.API_URL || 'http://campaign-backend:3000'}/:path*`,
       },
+
     ];
   },
 };

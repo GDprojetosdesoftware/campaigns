@@ -4,14 +4,39 @@ on:
   push:
     branches: ["main"]
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
+
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build and Push (Simulado)
-        run: |
-          echo "Simulando build de backend e frontend..."
-          echo "Em um cenário real, aqui usaríamos docker/build-push-action@v5"
-          echo "Para o Portainer, você pode usar o arquivo docker-compose.yml pronto na raiz."
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/backend:latest
+
+      - name: Build and Push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/frontend:latest
+
