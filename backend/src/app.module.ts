@@ -42,9 +42,20 @@ import { Campaign } from './campaigns/entities/campaign.entity';
       useFactory: (configService: ConfigService) => {
         const url = configService.get<string>('REDIS_URL');
         if (url) {
-          return {
-            connection: url, // BullMQ aceita URL direta como string conectando ao IORedis
-          };
+          try {
+            const parsedUrl = new URL(url);
+            const dbIndex = parseInt(parsedUrl.pathname.replace('/', ''), 10);
+            return {
+              connection: {
+                host: parsedUrl.hostname,
+                port: parseInt(parsedUrl.port, 10) || 6379,
+                password: parsedUrl.password || undefined,
+                db: isNaN(dbIndex) ? 0 : dbIndex,
+              },
+            };
+          } catch (e) {
+            // Fallback se falhar o parse
+          }
         }
         return {
           connection: {
@@ -53,8 +64,8 @@ import { Campaign } from './campaigns/entities/campaign.entity';
           },
         };
       },
-
     }),
+
     CampaignsModule,
   ],
 })
