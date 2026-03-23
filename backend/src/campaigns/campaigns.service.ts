@@ -36,7 +36,18 @@ export class CampaignsService {
         throw new BadRequestException('Fields name, message, and inboxId are required');
       }
 
-      this.logger.log(`Saving campaign in database as PENDING.`);
+      let inboxName = 'WhatsApp';
+      try {
+        const inboxes = await this.chatwootService.getInboxes(Number(accountId));
+        const inbox = inboxes.find((i: any) => i.id === Number(inboxId));
+        if (inbox) {
+          inboxName = inbox.name;
+        }
+      } catch (err) {
+        this.logger.warn(`Could not fetch inbox name for inboxId ${inboxId}: ${err.message}`);
+      }
+
+      this.logger.log(`Saving campaign in database as PENDING. Inbox: ${inboxName}`);
 
       const campaign = this.campaignRepository.create({
         name,
@@ -44,6 +55,7 @@ export class CampaignsService {
         filters,
         accountId: Number(accountId),
         inboxId: Number(inboxId),
+        inboxName,
         evolutionInstance: evolutionInstance?.trim() || 'default',
         status: CampaignStatus.PENDING,
 
@@ -198,6 +210,7 @@ export class CampaignsService {
       filters: original.filters,
       accountId: original.accountId,
       inboxId: original.inboxId,
+      inboxName: (original as any).inboxName,
       evolutionInstance: original.evolutionInstance,
       status: CampaignStatus.PENDING,
       totalContacts: 0,

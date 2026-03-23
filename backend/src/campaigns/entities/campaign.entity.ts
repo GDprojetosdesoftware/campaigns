@@ -28,6 +28,9 @@ export class Campaign {
   @Column()
   inboxId: number;
 
+  @Column({ nullable: true })
+  inboxName: string;
+
   @Column({ default: 'default' })
   evolutionInstance: string;
 

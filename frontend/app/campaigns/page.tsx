@@ -29,6 +29,7 @@ interface CampaignData {
     sentError?: number;
     createdAt: string;
     evolutionInstance: string;
+    inboxName?: string;
 }
 
 export default function CampaignsPage() {
@@ -71,7 +72,7 @@ export default function CampaignsPage() {
                 sent: camp.sentSuccess || 0,
                 error: camp.sentError || 0,
                 date: new Date(camp.createdAt).toLocaleDateString('pt-BR'),
-                type: 'WhatsApp',
+                type: camp.inboxName || 'WhatsApp',
                 instance_name: camp.evolutionInstance || (camp as any).evolution_instance || "default"
             }));
             
@@ -103,7 +104,7 @@ export default function CampaignsPage() {
                         sent: camp.sentSuccess || 0,
                         error: camp.sentError || 0,
                         date: new Date(camp.createdAt).toLocaleDateString('pt-BR'),
-                        type: 'WhatsApp',
+                        type: camp.inboxName || 'WhatsApp',
                         instance_name: camp.evolutionInstance || (camp as any).evolution_instance || "default"
                     }));
                     setCampaigns(formattedCampaigns);
