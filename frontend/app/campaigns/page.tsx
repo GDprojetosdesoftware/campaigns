@@ -40,6 +40,7 @@ export default function CampaignsPage() {
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [showNotifications, setShowNotifications] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
     const menuRef = useRef<HTMLDivElement>(null);
     const notificationRef = useRef<HTMLDivElement>(null);
     
@@ -173,6 +174,10 @@ export default function CampaignsPage() {
         }
     };
 
+    const filteredCampaigns = campaigns.filter(camp => 
+        camp.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-[#09090b] text-gray-900 dark:text-white font-sans selection:bg-blue-500/30 transition-colors duration-300">
             {/* Sidebar */}
@@ -248,6 +253,8 @@ export default function CampaignsPage() {
                             <input
                                 type="text"
                                 placeholder="Buscar campanha..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
                                 className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-full pl-10 pr-4 py-2 text-sm w-64 outline-none focus:border-blue-500/50 dark:focus:border-blue-500/50 transition-all text-gray-900 dark:text-white"
                             />
                         </div>
@@ -317,7 +324,7 @@ export default function CampaignsPage() {
                                     </Link>
                                 </div>
                             ) : (
-                                campaigns.map((camp, i) => 
+                                filteredCampaigns.map((camp, i) => 
                                     viewMode === 'grid' ? (
                                     <motion.div
                                         layout
@@ -333,11 +340,6 @@ export default function CampaignsPage() {
                                                     <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-500 bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded-md">
                                                         {camp.type}
                                                     </span>
-                                                    {camp.instance_name && camp.instance_name !== "" && (
-                                                        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-md border border-gray-200 dark:border-white/5">
-                                                            {camp.instance_name}
-                                                        </span>
-                                                    )}
                                                 </div>
                                                 <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{camp.name}</h3>
                                             </div>
@@ -449,9 +451,6 @@ export default function CampaignsPage() {
                                                     <h3 className="font-bold text-gray-900 dark:text-white truncate">{camp.name}</h3>
                                                     <div className="flex items-center gap-2 mt-1 text-xs">
                                                         <span className="text-gray-500 dark:text-gray-400">{camp.type}</span>
-                                                        {camp.instance_name && camp.instance_name !== "" && (
-                                                            <span className="px-2 py-0.5 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 rounded text-xs">{camp.instance_name}</span>
-                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
