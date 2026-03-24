@@ -80,6 +80,13 @@ export function initChatwootSession(timeoutMs = 3000): Promise<boolean> {
             return;
         }
 
+        // Se já foi coletado pelo script estático do layout, resolve na hora!
+        if (sessionStorage.getItem('chatwootAccountId') && sessionStorage.getItem('chatwootToken')) {
+            console.log('[Campanhas] Sessão já resolvida via script estático do layout.');
+            resolve(true);
+            return;
+        }
+
         // Estratégia 2: Tenta extrair accountId do URL do parent (via referrer)
         try {
             // Tenta acessar parent.location (funciona se mesmo domínio)
