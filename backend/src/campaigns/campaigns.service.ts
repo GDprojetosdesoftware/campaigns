@@ -160,21 +160,27 @@ export class CampaignsService {
     await this.campaignQueue.addBulk(jobs);
   }
 
-  async findAll(accountId: number) {
+  async findAll(accountId?: number) {
+    const aid = accountId || this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
+    const filter = aid && !isNaN(aid) ? { where: { accountId: Number(aid) } } : {};
     return this.campaignRepository.find({ 
-      where: { accountId }, 
+      ...filter, 
       order: { createdAt: 'DESC' } 
     });
   }
 
-  async findOne(id: number, accountId: number) {
-    const campaign = await this.campaignRepository.findOneBy({ id, accountId });
+  async findOne(id: number, accountId?: number) {
+    const aid = accountId || this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
+    const filter = aid && !isNaN(aid) ? { id, accountId: Number(aid) } : { id };
+    const campaign = await this.campaignRepository.findOneBy(filter);
     if (!campaign) throw new NotFoundException(`Campaign ${id} not found`);
     return campaign;
   }
 
-  async update(id: number, updateDto: any, accountId: number) {
-    const campaign = await this.campaignRepository.findOneBy({ id, accountId });
+  async update(id: number, updateDto: any, accountId?: number) {
+    const aid = accountId || this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
+    const filter = aid && !isNaN(aid) ? { id, accountId: Number(aid) } : { id };
+    const campaign = await this.campaignRepository.findOneBy(filter);
     if (!campaign) throw new NotFoundException(`Campaign ${id} not found`);
 
     // Only allow editing pending campaigns
@@ -198,8 +204,10 @@ export class CampaignsService {
     return this.campaignRepository.save(campaign);
   }
 
-  async remove(id: number, accountId: number) {
-    const campaign = await this.campaignRepository.findOneBy({ id, accountId });
+  async remove(id: number, accountId?: number) {
+    const aid = accountId || this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
+    const filter = aid && !isNaN(aid) ? { id, accountId: Number(aid) } : { id };
+    const campaign = await this.campaignRepository.findOneBy(filter);
     if (!campaign) throw new NotFoundException(`Campaign ${id} not found`);
     await this.campaignRepository.remove(campaign);
     return { message: `Campaign ${id} deleted successfully` };

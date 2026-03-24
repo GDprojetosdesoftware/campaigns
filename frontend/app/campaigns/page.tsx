@@ -70,6 +70,12 @@ export default function CampaignsPage() {
         setError(null);
         try {
             const res = await apiFetch('/campaigns');
+            if (res.status === 401) {
+                const body = await res.json().catch(() => ({}));
+                setError(body?.message || 'Acesso não autorizado. Abra esta página pelo Chatwoot com ?accountId=X&token=Y na URL.');
+                setCampaigns([]);
+                return;
+            }
             if (!res.ok) throw new Error('Falha ao buscar campanhas');
             const data = await res.json();
             
