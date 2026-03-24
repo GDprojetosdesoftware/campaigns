@@ -60,10 +60,39 @@ function extractFromMessageData(data: any): { token?: string; accountId?: string
 }
 
 /**
+ * Inicializa a escuta global de postMessages do Chatwoot no módulo.
+ * Deve estar no escopo raiz para não perder mensagens enviadas antes do React montar.
+ */
+if (typeof window !== 'undefined') {
+    window.addEventListener('message', (event: MessageEvent) => {
+        // Log leve de qualquer mensagem recebida no contexto global
+        if (!event.data) return;
+        
+        // Evita spam visual se for de react/webpack
+        const isReactLog = typeof event.data === 'string' && event.data.includes('react-refresh');
+        if (!isReactLog && process.env.NODE_ENV !== 'production') {
+            const preview = typeof event.data === 'object' ? JSON.stringify(event.data).substring(0, 150) : event.data;
+            console.log(`[Campanhas Global] postMessage origin ${event.origin}:`, preview);
+        }
+
+        const { token, accountId } = extractFromMessageData(event.data);
+
+        if (token) {
+            sessionStorage.setItem('chatwootToken', token);
+            console.log('[Campanhas Global] Token salvo no sessionStorage com sucesso!');
+        }
+        if (accountId) {
+            sessionStorage.setItem('chatwootAccountId', accountId);
+            console.log('[Campanhas Global] AccountId salvo com sucesso:', accountId);
+        }
+    });
+}
+
+/**
  * Inicializa a sessão multi-tenant.
  * Retorna uma Promise que resolve quando o token for obtido (ou após timeout).
  */
-export function initChatwootSession(timeoutMs = 3000): Promise<boolean> {
+export function initChatwootSession(timeoutMs = 1500): Promise<boolean> {
     return new Promise((resolve) => {
         if (typeof window === 'undefined') { resolve(false); return; }
 
@@ -74,72 +103,45 @@ export function initChatwootSession(timeoutMs = 3000): Promise<boolean> {
         if (urlAccountId) sessionStorage.setItem('chatwootAccountId', urlAccountId);
         if (urlToken) sessionStorage.setItem('chatwootToken', urlToken);
 
-        if (urlAccountId && urlToken) {
-            console.log('[Campanhas] Sessão via URL params:', urlAccountId);
-            resolve(true);
-            return;
-        }
-
-        // Se já foi coletado pelo script estático do layout, resolve na hora!
-        if (sessionStorage.getItem('chatwootAccountId') && sessionStorage.getItem('chatwootToken')) {
-            console.log('[Campanhas] Sessão já resolvida via script estático do layout.');
-            resolve(true);
-            return;
-        }
-
         // Estratégia 2: Tenta extrair accountId do URL do parent (via referrer)
-        try {
-            // Tenta acessar parent.location (funciona se mesmo domínio)
-            const parentUrl = window.parent?.location?.href || '';
-            const aidFromParent = extractAccountIdFromUrl(parentUrl);
-            if (aidFromParent) {
-                sessionStorage.setItem('chatwootAccountId', aidFromParent);
-                console.log('[Campanhas] AccountId extraído do parent URL:', aidFromParent);
-            }
-        } catch {
-            // Cross-origin: tenta via referrer
-            const aidFromReferrer = extractAccountIdFromUrl(document.referrer || '');
-            if (aidFromReferrer) {
-                sessionStorage.setItem('chatwootAccountId', aidFromReferrer);
-                console.log('[Campanhas] AccountId extraído do referrer:', aidFromReferrer);
+        if (!sessionStorage.getItem('chatwootAccountId')) {
+            try {
+                const parentUrl = window.parent?.location?.href || '';
+                const aidFromParent = extractAccountIdFromUrl(parentUrl);
+                if (aidFromParent) sessionStorage.setItem('chatwootAccountId', aidFromParent);
+            } catch {
+                const aidFromReferrer = extractAccountIdFromUrl(document.referrer || '');
+                if (aidFromReferrer) sessionStorage.setItem('chatwootAccountId', aidFromReferrer);
             }
         }
 
-        // Estratégia 3: PostMessage do Chatwoot
-        let resolved = false;
+        // Verificação de intervalo se a mensagem global já salvou ou vai salvar em breve
+        const checkSession = () => {
+            const hasSession = !!(sessionStorage.getItem('chatwootAccountId') && sessionStorage.getItem('chatwootToken'));
+            return hasSession;
+        };
 
-        const timeout = setTimeout(() => {
-            if (!resolved) {
-                resolved = true;
-                const hasSession = !!(sessionStorage.getItem('chatwootAccountId') && sessionStorage.getItem('chatwootToken'));
-                console.warn('[Campanhas] Timeout aguardando postMessage. Sessão disponível:', hasSession);
-                resolve(hasSession);
-            }
-        }, timeoutMs);
+        if (checkSession()) {
+            console.log('[Campanhas] Sessão já disponível via URL params ou Listener Global.');
+            resolve(true);
+            return;
+        }
 
-        function handleMessage(event: MessageEvent) {
-            // Log TUDO para diagnóstico
-            console.log('[Campanhas] postMessage recebido. Origin:', event.origin, '| Tipo:', typeof event.data, '| Dados:', JSON.stringify(event.data)?.substring(0, 300));
+        // Aguarda ativamente o listener global salvar os dados
+        const maxAttempts = timeoutMs / 100;
+        let attempts = 0;
 
-            const { token, accountId } = extractFromMessageData(event.data);
-
-            if (token) sessionStorage.setItem('chatwootToken', token);
-            if (accountId) sessionStorage.setItem('chatwootAccountId', accountId);
-
-            if (token || accountId) {
-                console.log('[Campanhas] Sessão capturada via postMessage. accountId:', accountId, '| token recebido:', !!token);
-            }
-
-            // Resolve se tiver ambos
-            if (!resolved && sessionStorage.getItem('chatwootAccountId') && sessionStorage.getItem('chatwootToken')) {
-                resolved = true;
-                clearTimeout(timeout);
-                window.removeEventListener('message', handleMessage);
+        const interval = setInterval(() => {
+            attempts++;
+            if (checkSession()) {
+                clearInterval(interval);
                 resolve(true);
+            } else if (attempts >= maxAttempts) {
+                clearInterval(interval);
+                console.warn('[Campanhas] Timeout aguardando token. Prosseguindo sem credenciais explícitas.');
+                resolve(false);
             }
-        }
-
-        window.addEventListener('message', handleMessage);
+        }, 100);
     });
 }
 
