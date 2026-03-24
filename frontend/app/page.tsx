@@ -7,6 +7,22 @@ export default function Home() {
     const router = useRouter();
 
     useEffect(() => {
+        // 🔑 CRÍTICO: Salvar accountId e token ANTES do redirect para /campaigns.
+        // Quando o Chatwoot abre o iframe com ?accountId=X&token=Y nesta URL raiz,
+        // o Next.js faria um redirect descartando esses params. Salvamos aqui.
+        const searchParams = new URLSearchParams(window.location.search);
+        const urlAccountId = searchParams.get('accountId');
+        const urlToken = searchParams.get('token');
+        
+        if (urlAccountId) {
+            sessionStorage.setItem('chatwootAccountId', urlAccountId);
+            console.log('[Campanhas] AccountId capturado na raiz antes do redirect:', urlAccountId);
+        }
+        if (urlToken) {
+            sessionStorage.setItem('chatwootToken', urlToken);
+            console.log('[Campanhas] Token capturado na raiz antes do redirect.');
+        }
+
         router.push("/campaigns");
     }, [router]);
 
