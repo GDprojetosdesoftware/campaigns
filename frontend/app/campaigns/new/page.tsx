@@ -29,8 +29,6 @@ export default function NewCampaignPage() {
     const router = useRouter();
 
     React.useEffect(() => {
-        initChatwootSession();
-
         const fetchInboxes = async () => {
             setIsLoadingInboxes(true);
             try {
@@ -76,9 +74,14 @@ export default function NewCampaignPage() {
             }
         };
 
-        fetchInboxes();
-        fetchInstances();
-        fetchLabels();
+        const setup = async () => {
+            await initChatwootSession();
+            fetchInboxes();
+            fetchInstances();
+            fetchLabels();
+        };
+
+        setup();
     }, []);
 
     const [isSubmitting, setIsSubmitting] = useState(false);

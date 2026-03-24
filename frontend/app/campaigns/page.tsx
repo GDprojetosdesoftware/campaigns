@@ -35,6 +35,7 @@ interface CampaignData {
 export default function CampaignsPage() {
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isInitialized, setIsInitialized] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [actionMenu, setActionMenu] = useState<string | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -91,17 +92,19 @@ export default function CampaignsPage() {
     };
 
     useEffect(() => {
-        initChatwootSession();
-        // Aguarda até 800ms para o Chatwoot enviar o token via postMessage antes de buscar
-        const timer = setTimeout(() => {
-            fetchCampaigns();
+        const setup = async () => {
+            await initChatwootSession();
+            setIsInitialized(true);
+            await fetchCampaigns();
             setLoading(false);
-        }, 800);
-        return () => clearTimeout(timer);
+        };
+        setup();
     }, []);
 
     // Auto-refresh a cada 3 segundos para atualizar o contador "Campanhas Ativas"
     useEffect(() => {
+        if (!isInitialized) return;
+
         const interval = setInterval(async () => {
             try {
                 const res = await apiFetch('/campaigns');

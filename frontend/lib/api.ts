@@ -13,7 +13,6 @@ export const API_BASE_URL = getBaseUrl();
 
 /**
  * Extrai o accountId de uma URL no formato /app/accounts/{id}/...
- * Ex: https://crm.example.com/app/accounts/2/campaigns/whatsapp -> 2
  */
 function extractAccountIdFromUrl(url: string): string | null {
     const match = url.match(/\/accounts\/(\d+)\//);
@@ -21,72 +20,126 @@ function extractAccountIdFromUrl(url: string): string | null {
 }
 
 /**
- * Inicializa a sessão multi-tenant do Chatwoot.
- * Combina 3 estratégias em ordem de prioridade:
- *  1. Parâmetros diretos na URL (?accountId=X&token=Y)
- *  2. PostMessage enviado pelo Chatwoot ao iframe
- *  3. document.referrer para extrair o accountId
+ * Extrai token e accountId de um objeto de postMessage do Chatwoot.
+ * Tenta vários formatos pois o Chatwoot mudou o formato em versões diferentes.
  */
-export function initChatwootSession() {
-    if (typeof window === 'undefined') return;
+function extractFromMessageData(data: any): { token?: string; accountId?: string } {
+    if (!data) return {};
 
-    // Estratégia 1: URL params explícitos
-    const searchParams = new URLSearchParams(window.location.search);
-    const urlAccountId = searchParams.get('accountId');
-    const urlToken = searchParams.get('token');
-    if (urlAccountId) sessionStorage.setItem('chatwootAccountId', urlAccountId);
-    if (urlToken) sessionStorage.setItem('chatwootToken', urlToken);
-
-    // Estratégia 2: Extrai accountId do referrer (quando embutido como iframe no Chatwoot)
-    if (!sessionStorage.getItem('chatwootAccountId') && document.referrer) {
-        const aidFromReferrer = extractAccountIdFromUrl(document.referrer);
-        if (aidFromReferrer) sessionStorage.setItem('chatwootAccountId', aidFromReferrer);
+    // Chatwoot pode enviar string JSON ou objeto direto
+    let parsed = data;
+    if (typeof data === 'string') {
+        try { parsed = JSON.parse(data); } catch { return {}; }
     }
 
-    // Estratégia 3: Escuta postMessage do Chatwoot ([CW Menu] Enviando token para iframe...)
-    // O Chatwoot envia o token via postMessage ao Dashboard App (iframe)
-    function handleChatwootMessage(event: MessageEvent) {
-        const data = event.data;
-        if (!data) return;
+    // Detecta qualquer campo com token ou account_id
+    const token =
+        parsed?.token ||
+        parsed?.data?.token ||
+        parsed?.api_access_token ||
+        parsed?.data?.api_access_token ||
+        parsed?.currentUser?.access_token ||
+        parsed?.data?.currentUser?.access_token ||
+        parsed?.user?.access_token ||
+        parsed?.data?.user?.access_token ||
+        parsed?.userData?.access_token ||
+        null;
 
-        // Formato do Chatwoot Dashboard App
-        // { event: 'cw.ready', data: { ... } }
-        // ou outros formatos dependendo da versão
+    const accountId =
+        parsed?.accountId != null ? String(parsed.accountId) :
+        parsed?.account_id != null ? String(parsed.account_id) :
+        parsed?.data?.accountId != null ? String(parsed.data.accountId) :
+        parsed?.data?.account_id != null ? String(parsed.data.account_id) :
+        parsed?.currentAccount?.id != null ? String(parsed.currentAccount.id) :
+        parsed?.data?.currentAccount?.id != null ? String(parsed.data.currentAccount.id) :
+        parsed?.currentUser?.account_id != null ? String(parsed.currentUser.account_id) :
+        parsed?.data?.currentUser?.account_id != null ? String(parsed.data.currentUser.account_id) :
+        null;
 
-        // Token no campo 'token' ou 'api_access_token' ou dentro de 'currentUser'
-        const token =
-            data?.token ||
-            data?.data?.token ||
-            data?.currentUser?.access_token ||
-            data?.data?.currentUser?.access_token ||
-            data?.user?.access_token ||
-            null;
+    return { token: token ?? undefined, accountId: accountId ?? undefined };
+}
 
-        // AccountId no campo 'accountId' ou dentro de 'currentAccount' 
-        const accountId =
-            data?.accountId ||
-            data?.data?.accountId ||
-            data?.currentAccount?.id ||
-            data?.data?.currentAccount?.id ||
-            null;
+/**
+ * Inicializa a sessão multi-tenant.
+ * Retorna uma Promise que resolve quando o token for obtido (ou após timeout).
+ */
+export function initChatwootSession(timeoutMs = 3000): Promise<boolean> {
+    return new Promise((resolve) => {
+        if (typeof window === 'undefined') { resolve(false); return; }
 
-        if (token) {
-            sessionStorage.setItem('chatwootToken', String(token));
-            console.log('[Campanhas] Token recebido via postMessage do Chatwoot.');
+        // Estratégia 1: URL params explícitos (?accountId=X&token=Y)
+        const searchParams = new URLSearchParams(window.location.search);
+        const urlAccountId = searchParams.get('accountId');
+        const urlToken = searchParams.get('token');
+        if (urlAccountId) sessionStorage.setItem('chatwootAccountId', urlAccountId);
+        if (urlToken) sessionStorage.setItem('chatwootToken', urlToken);
+
+        if (urlAccountId && urlToken) {
+            console.log('[Campanhas] Sessão via URL params:', urlAccountId);
+            resolve(true);
+            return;
         }
-        if (accountId) {
-            sessionStorage.setItem('chatwootAccountId', String(accountId));
-            console.log('[Campanhas] AccountId recebido via postMessage:', accountId);
-        }
-    }
 
-    window.addEventListener('message', handleChatwootMessage);
+        // Estratégia 2: Tenta extrair accountId do URL do parent (via referrer)
+        try {
+            // Tenta acessar parent.location (funciona se mesmo domínio)
+            const parentUrl = window.parent?.location?.href || '';
+            const aidFromParent = extractAccountIdFromUrl(parentUrl);
+            if (aidFromParent) {
+                sessionStorage.setItem('chatwootAccountId', aidFromParent);
+                console.log('[Campanhas] AccountId extraído do parent URL:', aidFromParent);
+            }
+        } catch {
+            // Cross-origin: tenta via referrer
+            const aidFromReferrer = extractAccountIdFromUrl(document.referrer || '');
+            if (aidFromReferrer) {
+                sessionStorage.setItem('chatwootAccountId', aidFromReferrer);
+                console.log('[Campanhas] AccountId extraído do referrer:', aidFromReferrer);
+            }
+        }
+
+        // Estratégia 3: PostMessage do Chatwoot
+        let resolved = false;
+
+        const timeout = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                const hasSession = !!(sessionStorage.getItem('chatwootAccountId') && sessionStorage.getItem('chatwootToken'));
+                console.warn('[Campanhas] Timeout aguardando postMessage. Sessão disponível:', hasSession);
+                resolve(hasSession);
+            }
+        }, timeoutMs);
+
+        function handleMessage(event: MessageEvent) {
+            // Log TUDO para diagnóstico
+            console.log('[Campanhas] postMessage recebido. Origin:', event.origin, '| Tipo:', typeof event.data, '| Dados:', JSON.stringify(event.data)?.substring(0, 300));
+
+            const { token, accountId } = extractFromMessageData(event.data);
+
+            if (token) sessionStorage.setItem('chatwootToken', token);
+            if (accountId) sessionStorage.setItem('chatwootAccountId', accountId);
+
+            if (token || accountId) {
+                console.log('[Campanhas] Sessão capturada via postMessage. accountId:', accountId, '| token recebido:', !!token);
+            }
+
+            // Resolve se tiver ambos
+            if (!resolved && sessionStorage.getItem('chatwootAccountId') && sessionStorage.getItem('chatwootToken')) {
+                resolved = true;
+                clearTimeout(timeout);
+                window.removeEventListener('message', handleMessage);
+                resolve(true);
+            }
+        }
+
+        window.addEventListener('message', handleMessage);
+    });
 }
 
 export const apiFetch = async (endpoint: string, options?: RequestInit) => {
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
     const url = `${API_BASE_URL}/${cleanEndpoint}`;
-    
+
     const getAuthHeaders = () => {
         if (typeof window !== 'undefined') {
             const aid = sessionStorage.getItem('chatwootAccountId');
