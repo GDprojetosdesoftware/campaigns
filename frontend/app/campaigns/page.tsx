@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import { Plus, Send, AlertCircle, CheckCircle2, Clock, MoreVertical, LayoutGrid, List, Search, Bell, Play, Trash2, Copy, Pencil, X, RefreshCcw, Mail } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, initChatwootSession } from "@/lib/api";
 
 interface Campaign {
     id: string;
@@ -58,15 +58,6 @@ export default function CampaignsPage() {
     }, [campaigns]);
 
     const fetchCampaigns = async () => {
-        if (typeof window !== 'undefined') {
-            const searchParams = new URLSearchParams(window.location.search);
-            const urlAccountId = searchParams.get('accountId');
-            const urlToken = searchParams.get('token');
-
-            if (urlAccountId) sessionStorage.setItem('chatwootAccountId', urlAccountId);
-            if (urlToken) sessionStorage.setItem('chatwootToken', urlToken);
-        }
-
         setError(null);
         try {
             const res = await apiFetch('/campaigns');
@@ -100,8 +91,13 @@ export default function CampaignsPage() {
     };
 
     useEffect(() => {
-        fetchCampaigns();
-        setLoading(false);
+        initChatwootSession();
+        // Aguarda até 800ms para o Chatwoot enviar o token via postMessage antes de buscar
+        const timer = setTimeout(() => {
+            fetchCampaigns();
+            setLoading(false);
+        }, 800);
+        return () => clearTimeout(timer);
     }, []);
 
     // Auto-refresh a cada 3 segundos para atualizar o contador "Campanhas Ativas"

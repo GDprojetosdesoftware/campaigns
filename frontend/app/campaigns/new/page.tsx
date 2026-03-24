@@ -7,7 +7,7 @@ import { ArrowLeft, Send, Users, MessageSquare, Settings, CheckCircle2, ChevronR
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, initChatwootSession } from "@/lib/api";
 
 export default function NewCampaignPage() {
     const [step, setStep] = useState(1);
@@ -29,14 +29,7 @@ export default function NewCampaignPage() {
     const router = useRouter();
 
     React.useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const searchParams = new URLSearchParams(window.location.search);
-            const urlAccountId = searchParams.get('accountId');
-            const urlToken = searchParams.get('token');
-
-            if (urlAccountId) sessionStorage.setItem('chatwootAccountId', urlAccountId);
-            if (urlToken) sessionStorage.setItem('chatwootToken', urlToken);
-        }
+        initChatwootSession();
 
         const fetchInboxes = async () => {
             setIsLoadingInboxes(true);
