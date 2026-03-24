@@ -20,31 +20,39 @@ export class ChatwootService {
     });
   }
 
-  async filterContacts(accountId: number, filters: string[]) {
+  private getRequestConfig(token?: string, extra: any = {}) {
+    const config: any = { ...extra };
+    if (token) {
+      config.headers = {
+        ...config.headers,
+        api_access_token: token,
+      };
+    }
+    return config;
+  }
+
+  async filterContacts(accountId: number, filters: string[], token?: string) {
     try {
-      if (!this.httpClient.defaults.baseURL || !this.httpClient.defaults.headers['api_access_token']) {
+      if (!this.httpClient.defaults.baseURL || (!this.httpClient.defaults.headers['api_access_token'] && !token)) {
         throw new Error('Chatwoot API URL or Token not configured. Check environment variables.');
       }
 
       // Se não há filtros, busca TODOS os contatos paginados
       if (!filters || filters.length === 0) {
         this.logger.log(`No filters provided for account ${accountId}. Fetching ALL contacts.`);
-        return this.getAllContacts(accountId);
+        return this.getAllContacts(accountId, token);
       }
 
       this.logger.log(`Filtering contacts via CONVERSATIONS for account ${accountId} with labels: ${filters.join(', ')}`);
 
       // ── ESTRATÉGIA: Labels pertencem a CONVERSAS, não a contatos ──
-      // 1. Buscar conversas que possuem essas labels
-      const conversations = await this.getConversationsByLabels(accountId, filters);
+      const conversations = await this.getConversationsByLabels(accountId, filters, token);
       this.logger.log(`Found ${conversations.length} conversations with labels: ${filters.join(', ')}`);
 
-      // 2. Extrair IDs de contatos únicos das conversas + dados da conversa (fallback)
       const contactMap = new Map<number, { phone?: string; name?: string }>();
       for (const conversation of conversations) {
         const senderId = conversation.meta?.sender?.id;
         if (senderId && !contactMap.has(senderId)) {
-          // Extrai phone e nome do sender da conversa como fallback
           const senderPhone = conversation.meta?.sender?.phone_number || null;
           const senderName = conversation.meta?.sender?.name || null;
           contactMap.set(senderId, { phone: senderPhone, name: senderName });
@@ -52,36 +60,31 @@ export class ChatwootService {
       }
       this.logger.log(`Extracted ${contactMap.size} unique contact IDs from conversations`);
 
-      // 3. Buscar dados completos de cada contato
       const contacts: any[] = [];
       for (const [contactId, cached] of contactMap) {
         try {
           const res = await this.httpClient.get(
             `/api/v1/accounts/${accountId}/contacts/${contactId}`,
+            this.getRequestConfig(token)
           );
           let raw = res.data;
           
-          // Chatwoot pode retornar nested — ex: { payload: {...} }
           if (raw && !raw.id && (raw.payload || raw.contact)) {
             raw = raw.payload || raw.contact;
           }
           
-          // Log detalhado para debug
           this.logger.log(`Contact ${contactId} raw keys: ${JSON.stringify(Object.keys(raw || {}))}`);
-          this.logger.log(`Contact ${contactId} phone_number: "${raw?.phone_number}", identifier: "${raw?.identifier}", name: "${raw?.name}", cached_name: "${cached.name}"`);
 
-          // Tenta extrair phone de vários campos possíveis
           const phoneNumber =
-            raw?.phone_number ||               // campo padrão
-            raw?.identifier ||                  // WhatsApp pode usar identifier
-            cached.phone ||                     // meta.sender da conversa
+            raw?.phone_number ||
+            raw?.identifier ||
+            cached.phone ||
             null;
 
-          // Tenta extrair nome de vários campos possíveis
           const contactName =
-            raw?.name ||                        // campo padrão da API
-            cached.name ||                      // meta.sender.name da conversa
-            raw?.available_name ||              // campo alternativo do Chatwoot
+            raw?.name ||
+            cached.name ||
+            raw?.available_name ||
             '';
 
           if (phoneNumber) {
@@ -91,9 +94,6 @@ export class ChatwootService {
               phone_number: phoneNumber,
               email: raw?.email || '',
             });
-            this.logger.log(`Contact ${contactId}: name="${contactName}", phone="${phoneNumber}"`);
-          } else {
-            this.logger.warn(`Contact ${contactId} has no phone in any field. Full data: ${JSON.stringify(raw).substring(0, 500)}`);
           }
         } catch (err) {
           this.logger.warn(`Could not fetch contact ${contactId}: ${err.message}`);
@@ -101,11 +101,6 @@ export class ChatwootService {
       }
 
       this.logger.log(`${contacts.length} contacts with valid phone number`);
-
-      if (contacts.length === 0) {
-        this.logger.warn(`No contacts with phone found for account ${accountId} with labels: ${filters.join(', ')}`);
-      }
-
       return contacts;
     } catch (error) {
       const errorDetail = error.response?.data ? JSON.stringify(error.response.data) : error.message;
@@ -115,21 +110,19 @@ export class ChatwootService {
   }
 
   /** Busca conversas paginadas filtrando por label */
-  private async getConversationsByLabels(accountId: number, labels: string[]): Promise<any[]> {
-    // Tenta POST /conversations/filter primeiro (formato UI do Chatwoot — SEM attribute_model)
+  private async getConversationsByLabels(accountId: number, labels: string[], token?: string): Promise<any[]> {
     try {
       this.logger.log(`Trying POST /conversations/filter for labels: ${labels.join(', ')}`);
-      const result = await this.fetchConversationsViaFilter(accountId, labels);
+      const result = await this.fetchConversationsViaFilter(accountId, labels, token);
       if (result.length > 0) return result;
       this.logger.warn(`POST filter returned 0 conversations, trying GET fallback...`);
     } catch (err) {
       this.logger.warn(`POST filter failed (${err.response?.status || err.message}), trying GET fallback...`);
     }
 
-    // Fallback: GET /conversations?labels[]=...
     try {
       this.logger.log(`Trying GET /conversations?labels[] for labels: ${labels.join(', ')}`);
-      const result = await this.fetchConversationsViaGet(accountId, labels);
+      const result = await this.fetchConversationsViaGet(accountId, labels, token);
       return result;
     } catch (err) {
       this.logger.error(`GET fallback also failed: ${err.message}`);
@@ -137,12 +130,11 @@ export class ChatwootService {
     }
   }
 
-  private async fetchConversationsViaFilter(accountId: number, labels: string[]): Promise<any[]> {
+  private async fetchConversationsViaFilter(accountId: number, labels: string[], token?: string): Promise<any[]> {
     const allConversations: any[] = [];
     let page = 1;
 
     while (true) {
-      // Formato exato que o Chatwoot UI envia — SEM attribute_model
       const payload = labels.map((label, index) => ({
         attribute_key: 'labels',
         filter_operator: 'equal_to',
@@ -150,19 +142,11 @@ export class ChatwootService {
         query_operator: index < labels.length - 1 ? 'AND' : null,
       }));
 
-      this.logger.log(`POST filter page ${page}, payload: ${JSON.stringify({ payload })}`);
-
       const response = await this.httpClient.post(
         `/api/v1/accounts/${accountId}/conversations/filter`,
         { payload },
-        { params: { page } },
+        this.getRequestConfig(token, { params: { page } }),
       );
-
-      // Log da resposta bruta para debug
-      this.logger.log(`POST filter response keys: ${JSON.stringify(Object.keys(response.data || {}))}`);
-      if (response.data?.data) {
-        this.logger.log(`response.data.data keys: ${JSON.stringify(Object.keys(response.data.data))}`);
-      }
 
       const responseData = response.data?.data || response.data;
       const conversations = responseData?.payload || [];
@@ -170,7 +154,6 @@ export class ChatwootService {
 
       const totalCount = responseData?.meta?.all_count ?? conversations.length;
       const totalPages = Math.ceil(totalCount / 25) || 1;
-      this.logger.log(`POST filter page ${page}/${totalPages}: ${conversations.length} conversations (total: ${totalCount})`);
 
       if (page >= totalPages || conversations.length === 0) break;
       page++;
@@ -179,25 +162,15 @@ export class ChatwootService {
     return allConversations;
   }
 
-  private async fetchConversationsViaGet(accountId: number, labels: string[]): Promise<any[]> {
+  private async fetchConversationsViaGet(accountId: number, labels: string[], token?: string): Promise<any[]> {
     const allConversations: any[] = [];
     let page = 1;
 
     while (true) {
-      this.logger.log(`GET conversations page ${page} with labels: ${labels.join(',')}`);
-
       const response = await this.httpClient.get(
         `/api/v1/accounts/${accountId}/conversations`,
-        {
-          params: { page, 'labels[]': labels },
-        },
+        this.getRequestConfig(token, { params: { page, 'labels[]': labels } })
       );
-
-      // Log da resposta bruta para debug
-      this.logger.log(`GET conversations response keys: ${JSON.stringify(Object.keys(response.data || {}))}`);
-      if (response.data?.data) {
-        this.logger.log(`GET response.data.data keys: ${JSON.stringify(Object.keys(response.data.data))}`);
-      }
 
       const responseData = response.data?.data || response.data;
       const conversations = responseData?.payload || [];
@@ -205,7 +178,6 @@ export class ChatwootService {
 
       const totalCount = responseData?.meta?.all_count ?? conversations.length;
       const totalPages = Math.ceil(totalCount / 25) || 1;
-      this.logger.log(`GET page ${page}/${totalPages}: ${conversations.length} conversations (total: ${totalCount})`);
 
       if (page >= totalPages || conversations.length === 0) break;
       page++;
@@ -215,7 +187,7 @@ export class ChatwootService {
   }
 
   /** Busca todos os contatos paginando até o fim */
-  private async getAllContacts(accountId: number): Promise<any[]> {
+  private async getAllContacts(accountId: number, token?: string): Promise<any[]> {
     const allContacts: any[] = [];
     let page = 1;
     const pageSize = 100;
@@ -223,13 +195,13 @@ export class ChatwootService {
     while (true) {
       const response = await this.httpClient.get(
         `/api/v1/accounts/${accountId}/contacts`,
-        { params: { page, include_contacts: true } },
+        this.getRequestConfig(token, { params: { page, include_contacts: true } })
       );
 
       const contacts = response.data?.payload || [];
       allContacts.push(...contacts);
 
-      if (contacts.length < pageSize) break; // última página
+      if (contacts.length < pageSize) break;
       page++;
     }
 
@@ -237,11 +209,12 @@ export class ChatwootService {
     return allContacts;
   }
 
-  async getLabels(accountId: number) {
+  async getLabels(accountId: number, token?: string) {
     try {
       this.logger.log(`Fetching labels for account ${accountId}`);
       const response = await this.httpClient.get(
         `/api/v1/accounts/${accountId}/labels`,
+        this.getRequestConfig(token)
       );
       return response.data.payload;
     } catch (error) {
@@ -250,25 +223,25 @@ export class ChatwootService {
     }
   }
 
-  async getOrCreateConversation(accountId: number, inboxId: number, contactId: number) {
+  async getOrCreateConversation(accountId: number, inboxId: number, contactId: number, token?: string) {
     try {
       this.logger.log(`Creating/Finding conversation for contact ${contactId} in inbox ${inboxId}`);
       
-      // inbox_id é o campo correto na API v1 do Chatwoot
       const response = await this.httpClient.post(
         `/api/v1/accounts/${accountId}/conversations`,
         {
           inbox_id: inboxId,
           contact_id: contactId,
         },
+        this.getRequestConfig(token)
       );
       return response.data;
     } catch (error) {
-      // Se a conversa já existe (409 Conflict), tenta buscar a existente
       if (error.response?.status === 409 || error.response?.data?.error?.includes('already')) {
         this.logger.warn(`Conversation may already exist for contact ${contactId}. Trying to find it.`);
         const existing = await this.httpClient.get(
           `/api/v1/accounts/${accountId}/contacts/${contactId}/conversations`,
+          this.getRequestConfig(token)
         );
         const conversations = existing.data?.payload || [];
         const match = conversations.find((c: any) => c.inbox_id === inboxId);
@@ -279,24 +252,26 @@ export class ChatwootService {
     }
   }
 
-  async updateKanbanStatus(accountId: number, conversationId: number, statusLabel: string) {
+  async updateKanbanStatus(accountId: number, conversationId: number, statusLabel: string, token?: string) {
     try {
       this.logger.log(`Updating Kanban status for conversation ${conversationId} to ${statusLabel}`);
       
       await this.httpClient.post(
         `/api/v1/accounts/${accountId}/conversations/${conversationId}/labels`,
         { labels: [statusLabel] },
+        this.getRequestConfig(token)
       );
     } catch (error) {
       this.logger.error(`Error updating Kanban status: ${error.message}`);
     }
   }
 
-  async getInboxes(accountId: number) {
+  async getInboxes(accountId: number, token?: string) {
     try {
       this.logger.log(`Fetching inboxes for account ${accountId}`);
       const response = await this.httpClient.get(
         `/api/v1/accounts/${accountId}/inboxes`,
+        this.getRequestConfig(token)
       );
       return response.data.payload;
     } catch (error) {
@@ -305,7 +280,7 @@ export class ChatwootService {
     }
   }
 
-  async sendMessage(accountId: number, conversationId: number, content: string) {
+  async sendMessage(accountId: number, conversationId: number, content: string, token?: string) {
     try {
       this.logger.log(`Sending message to conversation ${conversationId} for account ${accountId}`);
       const response = await this.httpClient.post(
@@ -314,6 +289,7 @@ export class ChatwootService {
           content,
           message_type: 'outgoing',
         },
+        this.getRequestConfig(token)
       );
       return response.data;
     } catch (error) {

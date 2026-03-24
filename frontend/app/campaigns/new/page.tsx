@@ -29,6 +29,15 @@ export default function NewCampaignPage() {
     const router = useRouter();
 
     React.useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const searchParams = new URLSearchParams(window.location.search);
+            const urlAccountId = searchParams.get('accountId');
+            const urlToken = searchParams.get('token');
+
+            if (urlAccountId) sessionStorage.setItem('chatwootAccountId', urlAccountId);
+            if (urlToken) sessionStorage.setItem('chatwootToken', urlToken);
+        }
+
         const fetchInboxes = async () => {
             setIsLoadingInboxes(true);
             try {

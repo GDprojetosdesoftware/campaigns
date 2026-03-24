@@ -22,7 +22,7 @@ export class CampaignsService {
     private evolutionService: EvolutionService,
   ) {}
 
-  async create(createCampaignDto: any) {
+  async create(createCampaignDto: any, token?: string) {
     const { name, message, filters = [], inboxId, evolutionInstance, scheduledAt } = createCampaignDto;
     const accountId = createCampaignDto.accountId || this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
 
@@ -30,7 +30,7 @@ export class CampaignsService {
       this.logger.log(`Starting campaign creation: ${name} (Account: ${accountId})`);
 
       if (!accountId) {
-        throw new BadRequestException('CHATWOOT_ACCOUNT_ID is required (check environment variables)');
+        throw new BadRequestException('CHATWOOT_ACCOUNT_ID is required');
       }
       if (!name || !message || !inboxId) {
         throw new BadRequestException('Fields name, message, and inboxId are required');
@@ -38,7 +38,7 @@ export class CampaignsService {
 
       let inboxName = 'WhatsApp';
       try {
-        const inboxes = await this.chatwootService.getInboxes(Number(accountId));
+        const inboxes = await this.chatwootService.getInboxes(Number(accountId), token);
         const inbox = inboxes.find((i: any) => i.id === Number(inboxId));
         if (inbox) {
           inboxName = inbox.name;
@@ -56,15 +56,14 @@ export class CampaignsService {
         accountId: Number(accountId),
         inboxId: Number(inboxId),
         inboxName,
+        chatwootToken: token,
         evolutionInstance: evolutionInstance?.trim() || 'default',
         status: CampaignStatus.PENDING,
-
         totalContacts: 0,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       });
 
       const savedCampaign = await this.campaignRepository.save(campaign);
-
       this.logger.log(`Campaign ${savedCampaign.id} created successfully with status ${savedCampaign.status}.`);
       return savedCampaign;
 
@@ -80,19 +79,22 @@ export class CampaignsService {
       throw new NotFoundException(`Campaign ${id} not found`);
     }
 
-    // Permite iniciar se PENDING ou re-iniciar se COMPLETED/FAILED
     if (campaign.status === CampaignStatus.PROCESSING) {
       throw new BadRequestException(`Campaign ${id} is already processing`);
     }
 
-    // Reset para re-execução
     campaign.sentSuccess = 0;
     campaign.sentError = 0;
     campaign.totalContacts = 0;
 
     try {
       this.logger.log(`Step 1: Fetching contacts from Chatwoot for campaign ${id} with filters: ${JSON.stringify(campaign.filters)}`);
-      const contacts = await this.chatwootService.filterContacts(campaign.accountId, campaign.filters || []);
+      
+      const contacts = await this.chatwootService.filterContacts(
+        campaign.accountId, 
+        campaign.filters || [], 
+        campaign.chatwootToken
+      );
       
       const contactsCount = contacts?.length || 0;
       this.logger.log(`Step 2: Found ${contactsCount} contacts. Updating campaign status.`);
@@ -158,18 +160,21 @@ export class CampaignsService {
     await this.campaignQueue.addBulk(jobs);
   }
 
-  async findAll() {
-    return this.campaignRepository.find({ order: { createdAt: 'DESC' } });
+  async findAll(accountId: number) {
+    return this.campaignRepository.find({ 
+      where: { accountId }, 
+      order: { createdAt: 'DESC' } 
+    });
   }
 
-  async findOne(id: number) {
-    const campaign = await this.campaignRepository.findOneBy({ id });
+  async findOne(id: number, accountId: number) {
+    const campaign = await this.campaignRepository.findOneBy({ id, accountId });
     if (!campaign) throw new NotFoundException(`Campaign ${id} not found`);
     return campaign;
   }
 
-  async update(id: number, updateDto: any) {
-    const campaign = await this.campaignRepository.findOneBy({ id });
+  async update(id: number, updateDto: any, accountId: number) {
+    const campaign = await this.campaignRepository.findOneBy({ id, accountId });
     if (!campaign) throw new NotFoundException(`Campaign ${id} not found`);
 
     // Only allow editing pending campaigns
@@ -193,8 +198,8 @@ export class CampaignsService {
     return this.campaignRepository.save(campaign);
   }
 
-  async remove(id: number) {
-    const campaign = await this.campaignRepository.findOneBy({ id });
+  async remove(id: number, accountId: number) {
+    const campaign = await this.campaignRepository.findOneBy({ id, accountId });
     if (!campaign) throw new NotFoundException(`Campaign ${id} not found`);
     await this.campaignRepository.remove(campaign);
     return { message: `Campaign ${id} deleted successfully` };
@@ -222,20 +227,20 @@ export class CampaignsService {
     return this.campaignRepository.save(duplicate);
   }
 
-  async getInboxes() {
-    const accountId = this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
-    if (!accountId) {
+  async getInboxes(accountId?: number, token?: string) {
+    const aid = accountId || this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
+    if (!aid) {
       throw new Error('CHATWOOT_ACCOUNT_ID is required');
     }
-    return this.chatwootService.getInboxes(Number(accountId));
+    return this.chatwootService.getInboxes(Number(aid), token);
   }
 
-  async getLabels() {
-    const accountId = this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
-    if (!accountId) {
+  async getLabels(accountId?: number, token?: string) {
+    const aid = accountId || this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
+    if (!aid) {
       throw new Error('CHATWOOT_ACCOUNT_ID is required');
     }
-    return this.chatwootService.getLabels(Number(accountId));
+    return this.chatwootService.getLabels(Number(aid), token);
   }
 
   async getEvolutionInstances() {

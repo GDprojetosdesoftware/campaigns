@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put, InternalServerErrorException, Logger, Headers } from '@nestjs/common';
 import { CampaignsService } from './campaigns.service';
 
 @Controller('campaigns')
@@ -7,9 +7,9 @@ export class CampaignsController {
   constructor(private readonly campaignsService: CampaignsService) {}
 
   @Post()
-  async create(@Body() createCampaignDto: any) {
+  async create(@Body() createCampaignDto: any, @Headers('x-auth-token') token: string) {
     try {
-      return await this.campaignsService.create(createCampaignDto);
+      return await this.campaignsService.create(createCampaignDto, token);
     } catch (error) {
       console.error('Error creating campaign in controller:', error);
       if (error instanceof Error) {
@@ -43,9 +43,9 @@ export class CampaignsController {
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() updateDto: any) {
+  async update(@Param('id') id: string, @Body() updateDto: any, @Headers('x-account-id') accountId: string) {
     try {
-      return await this.campaignsService.update(+id, updateDto);
+      return await this.campaignsService.update(+id, updateDto, +accountId);
     } catch (error) {
       this.logger.error(`Error updating campaign: ${error.message}`);
       throw new InternalServerErrorException(error.message || 'Error updating campaign');
@@ -53,9 +53,9 @@ export class CampaignsController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @Headers('x-account-id') accountId: string) {
     try {
-      return await this.campaignsService.remove(+id);
+      return await this.campaignsService.remove(+id, +accountId);
     } catch (error) {
       this.logger.error(`Error deleting campaign: ${error.message}`);
       throw new InternalServerErrorException(error.message || 'Error deleting campaign');
@@ -63,9 +63,9 @@ export class CampaignsController {
   }
 
   @Get('inboxes')
-  async getInboxes() {
+  async getInboxes(@Headers('x-account-id') accountId: string, @Headers('x-auth-token') token: string) {
     try {
-      return await this.campaignsService.getInboxes();
+      return await this.campaignsService.getInboxes(+accountId, token);
     } catch (error) {
       this.logger.error(`Error fetching inboxes: ${error.message}`);
       throw new InternalServerErrorException('Erro ao buscar inboxes do Chatwoot');
@@ -73,9 +73,9 @@ export class CampaignsController {
   }
 
   @Get('labels')
-  async getLabels() {
+  async getLabels(@Headers('x-account-id') accountId: string, @Headers('x-auth-token') token: string) {
     try {
-      return await this.campaignsService.getLabels();
+      return await this.campaignsService.getLabels(+accountId, token);
     } catch (error) {
       this.logger.error(`Error fetching labels: ${error.message}`);
       throw new InternalServerErrorException('Erro ao buscar etiquetas do Chatwoot');
@@ -104,12 +104,12 @@ export class CampaignsController {
   }
 
   @Get()
-  findAll() {
-    return this.campaignsService.findAll();
+  findAll(@Headers('x-account-id') accountId: string) {
+    return this.campaignsService.findAll(+accountId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.campaignsService.findOne(+id);
+  findOne(@Param('id') id: string, @Headers('x-account-id') accountId: string) {
+    return this.campaignsService.findOne(+id, +accountId);
   }
 }

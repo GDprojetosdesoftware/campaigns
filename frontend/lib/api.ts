@@ -17,8 +17,21 @@ export const apiFetch = async (endpoint: string, options?: RequestInit) => {
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
     const url = `${API_BASE_URL}/${cleanEndpoint}`;
     
+    const getAuthHeaders = () => {
+        if (typeof window !== 'undefined') {
+            const aid = sessionStorage.getItem('chatwootAccountId');
+            const token = sessionStorage.getItem('chatwootToken');
+            const h: any = {};
+            if (aid) h['X-Account-Id'] = aid;
+            if (token) h['X-Auth-Token'] = token;
+            return h;
+        }
+        return {};
+    };
+
     const defaultHeaders = {
         'Content-Type': 'application/json',
+        ...getAuthHeaders(),
     };
 
     return fetch(url, {

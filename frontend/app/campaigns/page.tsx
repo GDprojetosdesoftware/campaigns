@@ -58,6 +58,15 @@ export default function CampaignsPage() {
     }, [campaigns]);
 
     const fetchCampaigns = async () => {
+        if (typeof window !== 'undefined') {
+            const searchParams = new URLSearchParams(window.location.search);
+            const urlAccountId = searchParams.get('accountId');
+            const urlToken = searchParams.get('token');
+
+            if (urlAccountId) sessionStorage.setItem('chatwootAccountId', urlAccountId);
+            if (urlToken) sessionStorage.setItem('chatwootToken', urlToken);
+        }
+
         setError(null);
         try {
             const res = await apiFetch('/campaigns');

@@ -31,6 +31,9 @@ export class Campaign {
   @Column({ nullable: true })
   inboxName: string;
 
+  @Column({ nullable: true })
+  chatwootToken: string;
+
   @Column({ default: 'default' })
   evolutionInstance: string;
 
