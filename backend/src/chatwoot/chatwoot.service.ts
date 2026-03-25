@@ -26,10 +26,20 @@ export class ChatwootService {
   private getRequestConfig(token?: string, extra: any = {}) {
     const config: any = { ...extra };
     if (token) {
-      config.headers = {
-        ...config.headers,
-        api_access_token: token,
-      };
+      if (token.startsWith('devise|')) {
+        const parts = token.split('|');
+        config.headers = {
+          ...config.headers,
+          'access-token': parts[1],
+          client: parts[2],
+          uid: parts[3],
+        };
+      } else {
+        config.headers = {
+          ...config.headers,
+          api_access_token: token,
+        };
+      }
     }
     return config;
   }
