@@ -75,7 +75,8 @@ export class CampaignsController {
       return await this.campaignsService.getInboxes(aid, tok);
     } catch (error) {
       if (error instanceof UnauthorizedException) throw error;
-      throw new InternalServerErrorException('Erro ao buscar inboxes do Chatwoot');
+      const detail = error.response?.data?.message || error.message || 'Erro desconhecido';
+      throw new InternalServerErrorException(`Erro Chatwoot Inboxes: ${detail}`);
     }
   }
 
@@ -86,7 +87,8 @@ export class CampaignsController {
       return await this.campaignsService.getLabels(aid, tok);
     } catch (error) {
       if (error instanceof UnauthorizedException) throw error;
-      throw new InternalServerErrorException('Erro ao buscar etiquetas do Chatwoot');
+      const detail = error.response?.data?.message || error.message || 'Erro desconhecido';
+      throw new InternalServerErrorException(`Erro Chatwoot Labels: ${detail}`);
     }
   }
 
@@ -95,7 +97,8 @@ export class CampaignsController {
     try {
       return await this.campaignsService.getEvolutionInstances();
     } catch (error) {
-      throw new InternalServerErrorException('Erro ao buscar instâncias do Evolution API');
+      const detail = error.response?.data?.message || error.message || 'Erro desconhecido';
+      throw new InternalServerErrorException(`Erro Evolution Instances: ${detail}`);
     }
   }
 

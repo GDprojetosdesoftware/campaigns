@@ -8,7 +8,10 @@ export class EvolutionService {
   private readonly httpClient: AxiosInstance;
 
   constructor(private configService: ConfigService) {
-    const baseUrl = this.configService.get<string>('EVOLUTION_API_URL');
+    let baseUrl = this.configService.get<string>('EVOLUTION_API_URL') || '';
+    if (baseUrl.endsWith('/')) {
+      baseUrl = baseUrl.slice(0, -1);
+    }
     const apiToken = this.configService.get<string>('EVOLUTION_API_TOKEN');
 
     this.httpClient = axios.create({
