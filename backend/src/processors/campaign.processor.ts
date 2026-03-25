@@ -36,6 +36,7 @@ export class CampaignProcessor extends WorkerHost {
         campaign.accountId,
         campaign.inboxId,
         contact.id,
+        campaign.chatwootToken
       );
 
       // 2. Envia via Chatwoot (Unificado)
@@ -53,6 +54,7 @@ export class CampaignProcessor extends WorkerHost {
         campaign.accountId,
         conversation.id,
         personalizedMessage,
+        campaign.chatwootToken
       );
 
 
@@ -62,6 +64,7 @@ export class CampaignProcessor extends WorkerHost {
         campaign.accountId,
         conversation.id,
         'campanha_enviada',
+        campaign.chatwootToken
       );
 
       // 4. Atualiza contadores
