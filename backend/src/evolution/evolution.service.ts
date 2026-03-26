@@ -112,11 +112,20 @@ export class EvolutionService {
       const formattedNumber = number.replace(/\D/g, '');
       this.logger.log(`Sending ${mediaType} to ${formattedNumber} via instance ${instanceName}`);
 
+      // If mediaUrl starts with /, it's a local file. Prefix with our APP_URL
+      let finalMediaUrl = mediaUrl;
+      if (mediaUrl.startsWith('/')) {
+        const backendUrl = this.configService.get<string>('APP_URL') || '';
+        // Ensure not double slash
+        const host = backendUrl.endsWith('/') ? backendUrl.slice(0, -1) : backendUrl;
+        finalMediaUrl = `${host}${mediaUrl}`;
+      }
+
       const payload = {
         number: formattedNumber,
         mediaMessage: {
           mediatype: mediaType, // image, video, document, audio
-          media: mediaUrl,
+          media: finalMediaUrl,
           caption: caption || '',
           fileName: mediaUrl.split('/').pop() || 'file'
         }

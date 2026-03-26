@@ -192,6 +192,7 @@ services:
       - CHATWOOT_API_TOKEN=${CHATWOOT_API_TOKEN}
       - CHATWOOT_ACCOUNT_ID=${CHATWOOT_ACCOUNT_ID}
       - REDIS_URL=redis://:5497c27f795da40188ba@redis:6379/2
+      - APP_URL=https://${CAMPAIGN_BACKEND_DOMAIN}
     depends_on:
       - postgres-campaigns
       - redis

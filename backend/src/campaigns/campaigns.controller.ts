@@ -139,7 +139,7 @@ export class CampaignsController {
     // The URL should be relative to the base URL or absolute
     // For local dev, we assume /uploads/filename
     return {
-      url: `/uploads/${file.filename}`,
+      url: `/api/uploads/${file.filename}`,
       type: type,
       filename: file.originalname
     };

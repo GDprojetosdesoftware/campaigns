@@ -7,7 +7,10 @@ const nextConfig = {
         source: '/api/:path*',
         destination: `${process.env.API_URL || 'http://campaign-backend:3000'}/:path*`,
       },
-
+      {
+        source: '/api/uploads/:path*',
+        destination: `${process.env.API_URL || 'http://campaign-backend:3000'}/uploads/:path*`,
+      },
     ];
   },
 };
