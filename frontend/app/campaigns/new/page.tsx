@@ -2,14 +2,49 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState } from "react";
-import { ArrowLeft, Send, Users, MessageSquare, Settings, CheckCircle2, ChevronRight, FileText, Smartphone } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { ArrowLeft, Send, Users, MessageSquare, Settings, CheckCircle2, ChevronRight, FileText, Smartphone, Image as ImageIcon, Video, Music, File, Trash2, Upload, Loader2 } from "lucide-react";
+
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiFetch, initChatwootSession } from "@/lib/api";
+import { apiFetch, initChatwootSession, API_BASE_URL } from "@/lib/api";
 
 export default function NewCampaignPage() {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploadingMedia(true);
+        try {
+            const formDataUpload = new FormData();
+            formDataUpload.append('file', file);
+
+            const response = await apiFetch('/campaigns/upload', {
+                method: 'POST',
+                body: formDataUpload,
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setFormData({ 
+                    ...formData, 
+                    mediaUrl: data.url, 
+                    mediaType: data.type 
+                });
+                setMediaPreview(data.url);
+            } else {
+                alert("Erro ao subir arquivo.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Erro de conexão ao subir arquivo.");
+        } finally {
+            setIsUploadingMedia(false);
+        }
+    };
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
         name: "",
@@ -17,7 +52,12 @@ export default function NewCampaignPage() {
         tags: "",
         inboxId: "",
         instance: "",
+        mediaUrl: "",
+        mediaType: "",
     });
+
+    const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+    const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
     const [inboxes, setInboxes] = useState<any[]>([]);
     const [instances, setInstances] = useState<any[]>([]);
@@ -99,7 +139,9 @@ export default function NewCampaignPage() {
                     message: formData.message,
                     filters: selectedLabels,
                     inboxId: parseInt(formData.inboxId),
-                    evolutionInstance: 'default'
+                    evolutionInstance: 'default',
+                    mediaUrl: formData.mediaUrl || null,
+                    mediaType: formData.mediaType || null,
                 }),
 
             });
@@ -349,10 +391,76 @@ export default function NewCampaignPage() {
 
                                     <div className="space-y-6">
                                         <div className="group">
+                                            <div className="flex items-center gap-4 mb-6">
+                                               <input 
+                                                    type="file" 
+                                                    ref={fileInputRef} 
+                                                    onChange={handleFileChange} 
+                                                    className="hidden" 
+                                                    accept="image/*,video/*,audio/*,application/pdf,.doc,.docx"
+                                                />
+                                               <button 
+                                                    type="button" 
+                                                    disabled={isUploadingMedia}
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    className={`flex-1 flex flex-col items-center justify-center gap-3 p-8 rounded-[2rem] border-2 border-dashed transition-all ${
+                                                        formData.mediaUrl 
+                                                            ? "border-purple-500 bg-purple-50/50 dark:bg-purple-900/10" 
+                                                            : "border-gray-200 dark:border-gray-800 hover:border-purple-400 dark:hover:border-purple-600 bg-gray-50/50 dark:bg-gray-800/10"
+                                                    }`}
+                                               >
+                                                    {isUploadingMedia ? (
+                                                        <Loader2 className="text-purple-600 animate-spin" size={32} />
+                                                    ) : formData.mediaUrl ? (
+                                                        <CheckCircle2 className="text-purple-600" size={32} />
+                                                    ) : (
+                                                        <Upload className="text-gray-400" size={32} />
+                                                    )}
+                                                    <div className="text-center">
+                                                        <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                                                            {formData.mediaUrl ? "Mídia Carregada" : "Anexar Mídia"}
+                                                        </p>
+                                                        <p className="text-[10px] text-gray-500 mt-1 uppercase tracking-widest leading-none">
+                                                            {formData.mediaUrl ? "Clique para trocar" : "Imagem, Vídeo ou Documento"}
+                                                        </p>
+                                                    </div>
+                                               </button>
+
+                                               {formData.mediaUrl && (
+                                                   <button 
+                                                        type="button" 
+                                                        onClick={() => { setFormData({...formData, mediaUrl: '', mediaType: ''}); setMediaPreview(null); }}
+                                                        className="w-12 h-12 flex items-center justify-center bg-red-50 dark:bg-red-900/20 text-red-600 rounded-2xl border border-red-100 dark:border-red-800/50 hover:bg-red-600 hover:text-white transition-all"
+                                                   >
+                                                        <Trash2 size={20} />
+                                                   </button>
+                                               )}
+                                            </div>
+
+                                            {mediaPreview && (
+                                                <div className="mb-8 rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-lg bg-black/5">
+                                                    {formData.mediaType === 'image' && (
+                                                        <img src={mediaPreview.startsWith('/') ? `${API_BASE_URL}${mediaPreview}` : mediaPreview} className="w-full h-auto max-h-[300px] object-contain" alt="Preview" />
+                                                    )}
+                                                    {formData.mediaType === 'video' && (
+                                                        <video src={mediaPreview.startsWith('/') ? `${API_BASE_URL}${mediaPreview}` : mediaPreview} className="w-full h-auto" controls />
+                                                    )}
+                                                    {(formData.mediaType === 'document' || formData.mediaType === 'audio') && (
+                                                        <div className="p-8 flex items-center gap-4 bg-gray-50 dark:bg-gray-800/50">
+                                                            {formData.mediaType === 'audio' ? <Music className="text-purple-600" /> : <FileText className="text-purple-600" />}
+                                                            <div className="flex-1 truncate">
+                                                                <p className="text-sm font-bold truncate">Arquivo selecionado</p>
+                                                                <p className="text-[10px] text-gray-500 uppercase tracking-widest">{formData.mediaType}</p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            <label className="text-[10px] uppercase font-bold text-gray-400 tracking-widest pl-1 mb-2 block group-focus-within:text-purple-500 transition-colors">Legenda / Mensagem</label>
                                             <textarea
-                                                required
-                                                rows={8}
-                                                autoFocus
+                                                required={!formData.mediaUrl}
+                                                rows={6}
                                                 placeholder="Olá {{name}}, tudo bem? Estamos com uma promoção especial..."
                                                 className="w-full bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-[2rem] p-8 text-lg focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/5 outline-none transition-all resize-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
                                                 value={formData.message}
@@ -376,7 +484,7 @@ export default function NewCampaignPage() {
                                     <button 
                                         type="button" 
                                         onClick={nextStep} 
-                                        disabled={!formData.message}
+                                        disabled={!formData.message && !formData.mediaUrl}
                                         className="bg-purple-600 text-white px-10 py-4 rounded-full font-bold shadow-lg shadow-purple-500/20 hover:bg-purple-700 disabled:opacity-50 disabled:grayscale transition-all flex items-center gap-2 group"
                                     >
                                         Revisar e Lançar <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
@@ -439,8 +547,15 @@ export default function NewCampaignPage() {
                                             </div>
                                             <div className="flex-1">
                                                 <p className="text-[10px] text-white/60 font-bold uppercase tracking-widest mb-2">Mensagem do Cliente</p>
+                                                {formData.mediaUrl && (
+                                                    <div className="mb-3 rounded-lg overflow-hidden border border-white/10 bg-white/5">
+                                                        {formData.mediaType === 'image' && <img src={formData.mediaUrl.startsWith('/') ? `${API_BASE_URL}${formData.mediaUrl}` : formData.mediaUrl} className="w-full h-auto max-h-[150px] object-cover" />}
+                                                        {formData.mediaType === 'video' && <div className="p-3 text-[10px] flex items-center gap-2 bg-white/10"><Video size={14}/> Vídeo selecionado</div>}
+                                                        {formData.mediaType === 'document' && <div className="p-3 text-[10px] flex items-center gap-2 bg-white/10"><File size={14}/> Documento</div>}
+                                                    </div>
+                                                )}
                                                 <div className="bg-white/10 p-4 rounded-xl text-xs leading-relaxed italic border border-white/5">
-                                                    "{formData.message}"
+                                                    {formData.message ? `"${formData.message}"` : <span className="opacity-50">(Sem legenda)</span>}
                                                 </div>
                                             </div>
                                         </div>

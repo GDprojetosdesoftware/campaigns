@@ -161,15 +161,15 @@ export const apiFetch = async (endpoint: string, options?: RequestInit) => {
         return {};
     };
 
-    const defaultHeaders = {
-        'Content-Type': 'application/json',
-        ...getAuthHeaders(),
-    };
+    const h: any = { ...getAuthHeaders() };
+    if (!(options?.body instanceof FormData)) {
+        h['Content-Type'] = 'application/json';
+    }
 
     return fetch(url, {
         ...options,
         headers: {
-            ...defaultHeaders,
+            ...h,
             ...options?.headers,
         },
     });

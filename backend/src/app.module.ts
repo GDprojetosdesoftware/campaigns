@@ -4,9 +4,15 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { Campaign } from './campaigns/entities/campaign.entity';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads',
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '../.env',

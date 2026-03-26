@@ -1,5 +1,10 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, InternalServerErrorException, Logger, Headers, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put, InternalServerErrorException, Logger, Headers, UnauthorizedException, BadRequestException, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CampaignsService } from './campaigns.service';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+
+// ... inside CampaignsController ...
 
 @Controller('campaigns')
 export class CampaignsController {
@@ -109,6 +114,36 @@ export class CampaignsController {
     } catch (error) {
       throw new InternalServerErrorException(error.message);
     }
+  }
+
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: './uploads',
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
+      },
+    }),
+  }))
+  async uploadFile(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+    
+    // Detect type based on mimetype
+    let type = 'document';
+    if (file.mimetype.startsWith('image/')) type = 'image';
+    else if (file.mimetype.startsWith('video/')) type = 'video';
+    else if (file.mimetype.startsWith('audio/')) type = 'audio';
+
+    // The URL should be relative to the base URL or absolute
+    // For local dev, we assume /uploads/filename
+    return {
+      url: `/uploads/${file.filename}`,
+      type: type,
+      filename: file.originalname
+    };
   }
 
   @Get()

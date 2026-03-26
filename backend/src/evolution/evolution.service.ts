@@ -106,4 +106,36 @@ export class EvolutionService {
       throw error;
     }
   }
+
+  async sendMedia(instanceName: string, number: string, mediaUrl: string, mediaType: string, caption?: string) {
+    try {
+      const formattedNumber = number.replace(/\D/g, '');
+      this.logger.log(`Sending ${mediaType} to ${formattedNumber} via instance ${instanceName}`);
+
+      const payload = {
+        number: formattedNumber,
+        mediaMessage: {
+          mediatype: mediaType, // image, video, document, audio
+          media: mediaUrl,
+          caption: caption || '',
+          fileName: mediaUrl.split('/').pop() || 'file'
+        }
+      };
+
+      const response = await this.httpClient.post(
+        `/message/sendMedia/${instanceName}`,
+        payload,
+      );
+
+      this.logger.log(`Media sent successfully to ${formattedNumber}. Status: ${response.status}`);
+      return response.data;
+    } catch (error) {
+      const errorData = error.response?.data;
+      const errorStatus = error.response?.status;
+      this.logger.error(
+        `Error sending media via Evolution (${errorStatus}): ${JSON.stringify(errorData || error.message)}`
+      );
+      throw error;
+    }
+  }
 }

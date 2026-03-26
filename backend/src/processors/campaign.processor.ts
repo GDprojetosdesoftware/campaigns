@@ -48,14 +48,25 @@ export class CampaignProcessor extends WorkerHost {
         .replace(/\{\{email\}\}/gi, contact.email || '');
 
       const phone = contact.phone_number ? contact.phone_number.replace('+', '') : 'unknown';
-      this.logger.log(`Sending via Chatwoot structure for contact ${contact.id} (${phone}): "${personalizedMessage.substring(0, 50)}..."`);
-
-      await this.chatwootService.sendMessage(
-        campaign.accountId,
-        conversation.id,
-        personalizedMessage,
-        campaign.chatwootToken
-      );
+      
+      if (campaign.mediaUrl) {
+        this.logger.log(`Sending dynamic media (${campaign.mediaType}) via Evolution for contact ${contact.id} (${phone}). Caption length: ${personalizedMessage.length}`);
+        await this.evolutionService.sendMedia(
+          campaign.evolutionInstance || 'default',
+          phone,
+          campaign.mediaUrl,
+          campaign.mediaType || 'image',
+          personalizedMessage
+        );
+      } else {
+        this.logger.log(`Sending via Chatwoot structure for contact ${contact.id} (${phone}): "${personalizedMessage.substring(0, 50)}..."`);
+        await this.chatwootService.sendMessage(
+          campaign.accountId,
+          conversation.id,
+          personalizedMessage,
+          campaign.chatwootToken
+        );
+      }
 
 
       // 3. Atualiza Kanban (Opcional - Configurável)

@@ -37,6 +37,12 @@ export class Campaign {
   @Column({ default: 'default' })
   evolutionInstance: string;
 
+  @Column({ nullable: true })
+  mediaUrl: string;
+
+  @Column({ nullable: true })
+  mediaType: string; // 'image', 'video', 'audio', 'document'
+
   @Column({
     type: 'enum',
     enum: CampaignStatus,

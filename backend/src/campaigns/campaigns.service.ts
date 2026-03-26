@@ -32,8 +32,8 @@ export class CampaignsService {
       if (!accountId) {
         throw new BadRequestException('CHATWOOT_ACCOUNT_ID is required');
       }
-      if (!name || !message || !inboxId) {
-        throw new BadRequestException('Fields name, message, and inboxId are required');
+      if (!name || (!message && !createCampaignDto.mediaUrl) || !inboxId) {
+        throw new BadRequestException('Fields name, message (or media), and inboxId are required');
       }
 
       let inboxName = 'WhatsApp';
@@ -51,13 +51,15 @@ export class CampaignsService {
 
       const campaign = this.campaignRepository.create({
         name,
-        message,
+        message: message || '',
         filters,
         accountId: Number(accountId),
         inboxId: Number(inboxId),
         inboxName,
         chatwootToken: token,
         evolutionInstance: evolutionInstance?.trim() || 'default',
+        mediaUrl: createCampaignDto.mediaUrl,
+        mediaType: createCampaignDto.mediaType,
         status: CampaignStatus.PENDING,
         totalContacts: 0,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
@@ -193,6 +195,8 @@ export class CampaignsService {
     if (updateDto.filters !== undefined) campaign.filters = updateDto.filters;
     if (updateDto.inboxId !== undefined) campaign.inboxId = Number(updateDto.inboxId);
     if (updateDto.evolutionInstance !== undefined) campaign.evolutionInstance = updateDto.evolutionInstance?.trim();
+    if (updateDto.mediaUrl !== undefined) campaign.mediaUrl = updateDto.mediaUrl;
+    if (updateDto.mediaType !== undefined) campaign.mediaType = updateDto.mediaType;
     if (updateDto.scheduledAt !== undefined) campaign.scheduledAt = updateDto.scheduledAt ? new Date(updateDto.scheduledAt) : null;
 
     // Reset to pending when edited so user must restart
@@ -225,6 +229,8 @@ export class CampaignsService {
       inboxId: original.inboxId,
       inboxName: (original as any).inboxName,
       evolutionInstance: original.evolutionInstance,
+      mediaUrl: original.mediaUrl,
+      mediaType: original.mediaType,
       status: CampaignStatus.PENDING,
       totalContacts: 0,
       sentSuccess: 0,
