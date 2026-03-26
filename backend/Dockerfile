@@ -9,6 +9,7 @@ RUN npm run build
 # Production stage
 FROM node:20-alpine
 WORKDIR /app
+RUN mkdir -p uploads
 COPY package*.json ./
 RUN npm install --only=production
 COPY --from=build /app/dist ./dist

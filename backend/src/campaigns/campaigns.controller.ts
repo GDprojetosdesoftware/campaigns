@@ -4,7 +4,6 @@ import { CampaignsService } from './campaigns.service';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 
-// ... inside CampaignsController ...
 
 @Controller('campaigns')
 export class CampaignsController {
