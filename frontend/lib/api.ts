@@ -1,10 +1,18 @@
 const getBaseUrl = () => {
-    if (typeof window !== 'undefined') {
-        // No navegador, sempre usamos o proxy /api do Next.js
-        return '/api';
+    // No servidor (SSR), o Next.js tenta bater no backend via rede interna do Docker.
+    if (typeof window === 'undefined') {
+        const serverUrl = process.env.API_URL || 'http://campaign-backend:3000';
+        return serverUrl;
     }
-    // No servidor (SSR), usamos a URL interna do container
-    return process.env.API_URL || 'http://campaign-backend:3000';
+
+    // No cliente (navegador), usamos o proxy /api pelo domínio do Chatwoot/Frontend,
+    // a menos que queiramos expor o domínio do backend diretamente.
+    const publicUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (publicUrl && publicUrl.startsWith('http') && !publicUrl.includes('localhost')) {
+        return publicUrl;
+    }
+    
+    return '/api';
 };
 
 export const API_BASE_URL = getBaseUrl();
