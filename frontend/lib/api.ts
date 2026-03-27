@@ -1,17 +1,20 @@
+/**
+ * Retorna a base URL para chamadas API.
+ * 
+ * REGRA PRINCIPAL: No navegador, SEMPRE usamos o proxy /api do Next.js
+ * para evitar problemas de CORS com headers customizados (x-account-id, x-auth-token).
+ * 
+ * No servidor (SSR), usamos API_URL que aponta para a rede interna Docker.
+ */
 const getBaseUrl = () => {
-    // No servidor (SSR), o Next.js tenta bater no backend via rede interna do Docker.
+    // No servidor (SSR/build), usa rede interna Docker
     if (typeof window === 'undefined') {
-        const serverUrl = process.env.API_URL || 'http://campaign-backend:3000';
-        return serverUrl;
+        return process.env.API_URL || 'http://campaign-backend:3000';
     }
 
-    // No cliente (navegador), usamos o proxy /api pelo domínio do Chatwoot/Frontend,
-    // a menos que queiramos expor o domínio do backend diretamente.
-    const publicUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (publicUrl && publicUrl.startsWith('http') && !publicUrl.includes('localhost')) {
-        return publicUrl;
-    }
-    
+    // No navegador: SEMPRE usa o proxy local /api
+    // Isso evita CORS e garante que headers customizados sejam enviados corretamente.
+    // O proxy está configurado em next.config.mjs para redirecionar ao backend.
     return '/api';
 };
 
@@ -71,7 +74,6 @@ function extractFromMessageData(data: any): { token?: string; accountId?: string
  */
 if (typeof window !== 'undefined') {
     window.addEventListener('message', (event: MessageEvent) => {
-        // Log leve de qualquer mensagem recebida no contexto global
         if (!event.data) return;
         
         // Evita spam visual se for de react/webpack
@@ -121,10 +123,8 @@ export function initChatwootSession(timeoutMs = 1500): Promise<boolean> {
             }
         }
 
-        // Verificação de intervalo se a mensagem global já salvou ou vai salvar em breve
         const checkSession = () => {
-            const hasSession = !!(sessionStorage.getItem('chatwootAccountId') && sessionStorage.getItem('chatwootToken'));
-            return hasSession;
+            return !!(sessionStorage.getItem('chatwootAccountId') && sessionStorage.getItem('chatwootToken'));
         };
 
         if (checkSession()) {

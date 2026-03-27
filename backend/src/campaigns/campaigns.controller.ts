@@ -12,12 +12,16 @@ export class CampaignsController {
 
   /** Valida e extrai os headers de tenant. Lança 401 se ausentes. */
   private requireTenant(accountId: string, token: string): { aid: number; token: string } {
-    if (!accountId || isNaN(+accountId) || !token) {
+    const aidStr = accountId || process.env.CHATWOOT_ACCOUNT_ID;
+    const tok = token || process.env.CHATWOOT_API_TOKEN;
+
+    if (!aidStr || isNaN(+aidStr) || !tok) {
+      this.logger.error(`Tentativa de acesso sem autenticação válida. AccountId: ${aidStr}, Token presente: ${!!tok}`);
       throw new UnauthorizedException(
-        'Parâmetros de conta ausentes. Acesse esta página pelo Chatwoot com ?accountId=X&token=Y na URL.'
+        'Parâmetros de conta ausentes. Acesse esta página pelo Chatwoot ou configure CHATWOOT_ACCOUNT_ID e CHATWOOT_API_TOKEN no servidor.'
       );
     }
-    return { aid: +accountId, token };
+    return { aid: +aidStr, token: tok };
   }
 
   @Post()

@@ -1,15 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async rewrites() {
+    const backendUrl = process.env.API_URL || 'http://campaign-backend:3000';
     return [
-      {
-        // Proxy all /api/* requests to the backend container (or NEXT_PUBLIC_API_URL if defined)
-        source: '/api/:path*',
-        destination: `${process.env.API_URL || 'http://campaign-backend:3000'}/:path*`,
-      },
+      // Rota mais específica PRIMEIRO (uploads)
       {
         source: '/api/uploads/:path*',
-        destination: `${process.env.API_URL || 'http://campaign-backend:3000'}/uploads/:path*`,
+        destination: `${backendUrl}/uploads/:path*`,
+      },
+      // Rota geral depois
+      {
+        source: '/api/:path*',
+        destination: `${backendUrl}/:path*`,
       },
     ];
   },
