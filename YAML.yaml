@@ -188,10 +188,7 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD_CAMPAIGN:-postgres}@postgres-campaigns:5432/campanhas_db
       - CHATWOOT_API_URL=https://${CHATWOOT_DOMAIN:-localhost}
-      - CHATWOOT_API_TOKEN=${CHATWOOT_API_TOKEN}
-      - CHATWOOT_ACCOUNT_ID=${CHATWOOT_ACCOUNT_ID:-1}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-5497c27f795da40188ba}@redis:6379/2
-      - APP_URL=${CAMPAIGN_APP_URL:-https://${CAMPAIGN_BACKEND_DOMAIN}}
     depends_on:
       - postgres-campaigns
       - redis
