@@ -87,9 +87,14 @@ export class CampaignsController {
   @Get('labels')
   async getLabels(@Headers('x-account-id') accountId: string, @Headers('x-auth-token') token: string) {
     try {
+      console.log(`[Diagnostic] GetLabels called with AccountId: ${accountId}. Token present: ${!!token}`);
       const { aid, token: tok } = this.requireTenant(accountId, token);
-      return await this.campaignsService.getLabels(aid, tok);
+      console.log(`[Diagnostic] Tenant found: Account ${aid}`);
+      const labels = await this.campaignsService.getLabels(aid, tok);
+      console.log(`[Diagnostic] Labels returned from Chatwoot: ${labels?.length || 0}`);
+      return labels;
     } catch (error) {
+      console.error(`[Diagnostic] Error in GetLabels route:`, error.message);
       if (error instanceof UnauthorizedException) throw error;
       const detail = error.response?.data?.message || error.message || 'Erro desconhecido';
       throw new InternalServerErrorException(`Erro Chatwoot Labels: ${detail}`);

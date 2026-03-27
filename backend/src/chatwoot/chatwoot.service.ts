@@ -240,6 +240,24 @@ export class ChatwootService {
     try {
       this.logger.log(`Creating/Finding conversation for contact ${contactId} in inbox ${inboxId}`);
       
+      // 1. PRIMEIRO: Busca conversas existentes deste contato
+      const existing = await this.httpClient.get(
+        `/api/v1/accounts/${accountId}/contacts/${contactId}/conversations`,
+        this.getRequestConfig(token)
+      );
+      
+      const conversations = existing.data?.payload || [];
+      // Filtra por conversas na mesma caixa de entrada que NÃO estejam resolvidas (pendentes ou abertas)
+      const activeConversation = conversations.find(
+        (c: any) => c.inbox_id === inboxId && c.status !== 'resolved'
+      );
+
+      if (activeConversation) {
+        this.logger.log(`Using existing active conversation ${activeConversation.id} for contact ${contactId}`);
+        return activeConversation;
+      }
+
+      // 2. SEGUNDO: Se não houver conversa ativa ou na mesma inbox, cria uma nova
       const response = await this.httpClient.post(
         `/api/v1/accounts/${accountId}/conversations`,
         {
@@ -251,7 +269,8 @@ export class ChatwootService {
       return response.data;
     } catch (error) {
       if (error.response?.status === 409 || error.response?.data?.error?.includes('already')) {
-        this.logger.warn(`Conversation may already exist for contact ${contactId}. Trying to find it.`);
+        this.logger.warn(`Conversation may already exist for contact ${contactId}. Handling overlap.`);
+        // Se houver conflito mesmo com o check, busca a primeira compatível
         const existing = await this.httpClient.get(
           `/api/v1/accounts/${accountId}/contacts/${contactId}/conversations`,
           this.getRequestConfig(token)
@@ -260,7 +279,7 @@ export class ChatwootService {
         const match = conversations.find((c: any) => c.inbox_id === inboxId);
         if (match) return match;
       }
-      this.logger.error(`Error creating conversation: ${error.message}`);
+      this.logger.error(`Error creating/finding conversation: ${error.message}`);
       throw error;
     }
   }
@@ -308,6 +327,22 @@ export class ChatwootService {
     } catch (error) {
       const errorDetail = error.response?.data ? JSON.stringify(error.response.data) : error.message;
       this.logger.error(`Error sending message in conversation ${conversationId}: ${errorDetail}`);
+      throw error;
+    }
+  }
+
+  async sendMediaWithAttachment(accountId: number, conversationId: number, content: string, fileUrl: string, token?: string) {
+    try {
+      this.logger.log(`Sending media message to conversation ${conversationId} for account ${accountId}. URL: ${fileUrl}`);
+      // No Chatwoot, para enviar uma URL como anexo via API oficial sem FormData (upload),
+      // a forma mais comum em campanhas é enviar o conteúdo + link, 
+      // ou usar o campo attachments se o chatwoot suportar processar a URL.
+      // Caso mais simples e robusto para campanhas de massa: 
+      const finalContent = content ? `${content}\n\n${fileUrl}` : fileUrl;
+      
+      return this.sendMessage(accountId, conversationId, finalContent, token);
+    } catch (error) {
+      this.logger.error(`Error in sendMediaWithAttachment: ${error.message}`);
       throw error;
     }
   }

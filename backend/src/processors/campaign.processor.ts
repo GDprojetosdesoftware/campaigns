@@ -50,16 +50,30 @@ export class CampaignProcessor extends WorkerHost {
       const phone = contact.phone_number ? contact.phone_number.replace('+', '') : 'unknown';
       
       if (campaign.mediaUrl) {
-        this.logger.log(`Sending dynamic media (${campaign.mediaType}) via Evolution for contact ${contact.id} (${phone}). Caption length: ${personalizedMessage.length}`);
-        await this.evolutionService.sendMedia(
-          campaign.evolutionInstance || 'default',
-          phone,
-          campaign.mediaUrl,
-          campaign.mediaType || 'image',
-          personalizedMessage
-        );
+        // Envio com Mídia
+        if (campaign.evolutionInstance && campaign.evolutionInstance !== 'default' && campaign.evolutionInstance !== 'none') {
+            this.logger.log(`Sending dynamic media (${campaign.mediaType}) via Evolution (${campaign.evolutionInstance}) for contact ${contact.id} (${phone}).`);
+            await this.evolutionService.sendMedia(
+                campaign.evolutionInstance,
+                phone,
+                campaign.mediaUrl,
+                campaign.mediaType || 'image',
+                personalizedMessage
+            );
+        } else {
+            // Fallback para Chatwoot Nativo (Configuração Oficial ou sem Evolution)
+            this.logger.log(`Sending dynamic media via Chatwoot Native for contact ${contact.id} (${phone}).`);
+            await this.chatwootService.sendMediaWithAttachment(
+                campaign.accountId,
+                conversation.id,
+                personalizedMessage,
+                campaign.mediaUrl,
+                campaign.chatwootToken
+            );
+        }
       } else {
-        this.logger.log(`Sending via Chatwoot structure for contact ${contact.id} (${phone}): "${personalizedMessage.substring(0, 50)}..."`);
+        // Envio Apenas Texto
+        this.logger.log(`Sending text only for contact ${contact.id} (${phone}): "${personalizedMessage.substring(0, 50)}..."`);
         await this.chatwootService.sendMessage(
           campaign.accountId,
           conversation.id,
