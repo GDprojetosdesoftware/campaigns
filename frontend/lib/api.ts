@@ -1,12 +1,10 @@
 const getBaseUrl = () => {
     if (typeof window !== 'undefined') {
-        const envUrl = process.env.NEXT_PUBLIC_API_URL;
-        if (!envUrl || envUrl.includes('localhost')) {
-            return '/api';
-        }
-        return envUrl;
+        // No navegador, sempre usamos o proxy /api do Next.js
+        return '/api';
     }
-    return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://backend:3000';
+    // No servidor (SSR), usamos a URL interna do container
+    return process.env.API_URL || 'http://campaign-backend:3000';
 };
 
 export const API_BASE_URL = getBaseUrl();

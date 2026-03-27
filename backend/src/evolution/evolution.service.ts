@@ -109,27 +109,34 @@ export class EvolutionService {
 
   async sendMedia(instanceName: string, number: string, mediaUrl: string, mediaType: string, caption?: string) {
     try {
+      // Formata o número (só dígitos)
       const formattedNumber = number.replace(/\D/g, '');
       this.logger.log(`Sending ${mediaType} to ${formattedNumber} via instance ${instanceName}`);
-
-      // If mediaUrl starts with /, it's a local file. Prefix with our APP_URL
+      
+      // Se mediaUrl começa com /, é um arquivo local. Prefixa com APP_URL
       let finalMediaUrl = mediaUrl;
+      const baseUrl = this.configService.get<string>('APP_URL') || '';
+      const host = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+      
       if (mediaUrl.startsWith('/')) {
-        const backendUrl = this.configService.get<string>('APP_URL') || '';
-        // Ensure not double slash
-        const host = backendUrl.endsWith('/') ? backendUrl.slice(0, -1) : backendUrl;
         finalMediaUrl = `${host}${mediaUrl}`;
+      } else if (!mediaUrl.startsWith('http')) {
+        // Garantia de fall-back para caminhos relativos sem /
+        finalMediaUrl = `${host}/${mediaUrl}`;
       }
 
+      const mediaTypeLower = mediaType.toLowerCase();
+
+      // Formato esperado pela Evolution API v1/v2 para /message/sendMedia
       const payload = {
         number: formattedNumber,
-        mediaMessage: {
-          mediatype: mediaType, // image, video, document, audio
-          media: finalMediaUrl,
-          caption: caption || '',
-          fileName: mediaUrl.split('/').pop() || 'file'
-        }
+        mediatype: mediaTypeLower,
+        media: finalMediaUrl,
+        caption: caption || '',
+        fileName: mediaUrl.split('/').pop() || 'file'
       };
+
+      this.logger.debug(`Payload for ${instanceName}: ${JSON.stringify(payload)}`);
 
       const response = await this.httpClient.post(
         `/message/sendMedia/${instanceName}`,
@@ -138,13 +145,12 @@ export class EvolutionService {
 
       this.logger.log(`Media sent successfully to ${formattedNumber}. Status: ${response.status}`);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       const errorData = error.response?.data;
       const errorStatus = error.response?.status;
       this.logger.error(
         `Error sending media via Evolution (${errorStatus}): ${JSON.stringify(errorData || error.message)}`
       );
-      throw error;
     }
   }
 }
