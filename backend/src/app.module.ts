@@ -28,6 +28,8 @@ import { join } from 'path';
             url,
             entities: [Campaign],
             synchronize: true, // Apenas para dev/protótipo
+            retryAttempts: 10,
+            retryDelay: 3000,
           };
         }
         return {
@@ -39,6 +41,8 @@ import { join } from 'path';
           database: configService.get<string>('POSTGRES_DB', 'campanhas_db'),
           entities: [Campaign],
           synchronize: true,
+          retryAttempts: 10,
+          retryDelay: 3000,
         };
       },
     }),
