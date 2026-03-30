@@ -28,7 +28,20 @@ if (typeof window !== 'undefined') {
         const data = event.data;
         if (!data) return;
 
-        // Formatos variados de mensagens do Chatwoot
+        // Suporte ao formato do seu script customizado
+        if (data.type === 'AUTH_TOKEN' && data.payload) {
+            const auth = data.payload;
+            const token = auth['access-token'] || auth.token;
+            const accountId = auth.accountId || auth.account_id;
+
+            if (token) sessionStorage.setItem('chatwootToken', token);
+            if (accountId) sessionStorage.setItem('chatwootAccountId', String(accountId));
+            
+            console.log('%c[API] Sessão capturada do Chatwoot ✅', 'color: #00ff00; font-weight: bold');
+            return;
+        }
+
+        // Formatos padrões do Chatwoot
         const isAuthMessage = data.event === 'appContext' || data.type === 'chatwoot_ready' || data.token;
         
         if (isAuthMessage) {
@@ -37,10 +50,7 @@ if (typeof window !== 'undefined') {
 
             if (token) sessionStorage.setItem('chatwootToken', token);
             if (accountId) sessionStorage.setItem('chatwootAccountId', String(accountId));
-            
-            if (token || accountId) {
-                console.log('[API] Dados de autenticação capturados via postMessage');
-            }
+            console.log('[API] Dados capturados via postMessage padrão');
         }
     });
 }
@@ -100,8 +110,19 @@ export const apiFetch = async (endpoint: string, options?: RequestInit) => {
     if (typeof window !== 'undefined') {
         const aid = sessionStorage.getItem('chatwootAccountId');
         const token = sessionStorage.getItem('chatwootToken');
-        if (aid) headers.set('X-Account-Id', aid);
-        if (token) headers.set('X-Auth-Token', token);
+        
+        if (aid) {
+            headers.set('X-Account-Id', aid);
+        }
+        if (token) {
+            headers.set('X-Auth-Token', token);
+        }
+
+        // Log técnico crucial para o dashboard
+        console.log(`[API Request] ${options?.method || 'GET'} ${url}`, {
+            aid: aid || 'MISSING',
+            token: token ? 'PRESENT' : 'MISSING'
+        });
     }
 
     if (!(options?.body instanceof FormData) && !headers.has('Content-Type')) {

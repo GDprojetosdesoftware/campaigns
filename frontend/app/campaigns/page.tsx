@@ -45,7 +45,7 @@ export default function CampaignsPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const menuRef = useRef<HTMLDivElement>(null);
     const notificationRef = useRef<HTMLDivElement>(null);
-    
+
     const totalSent = campaigns.reduce((acc, camp) => acc + camp.sent, 0);
     const totalContacts = campaigns.reduce((acc, camp) => acc + camp.total, 0);
     const deliveryRate = totalContacts > 0 ? (totalSent / totalContacts) * 100 : 0;
@@ -62,15 +62,16 @@ export default function CampaignsPage() {
         setError(null);
         try {
             const res = await apiFetch('/campaigns');
-            if (res.status === 401) {
-                const body = await res.json().catch(() => ({}));
-                setError(body?.message || 'Acesso não autorizado. Abra esta página pelo Chatwoot com ?accountId=X&token=Y na URL.');
-                setCampaigns([]);
-                return;
-            }
-            if (!res.ok) throw new Error('Falha ao buscar campanhas');
-            const data = await res.json();
             
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                const status = res.status;
+                const msg = errorData.message || res.statusText || 'Erro desconhecido no servidor';
+                throw new Error(`[HTTP ${status}] ${msg}`);
+            }
+
+            const data = await res.json();
+
             const formattedCampaigns: Campaign[] = data.map((camp: CampaignData) => ({
                 id: camp.id,
                 name: camp.name,
@@ -82,7 +83,7 @@ export default function CampaignsPage() {
                 type: camp.inboxName || 'WhatsApp',
                 instance_name: camp.evolutionInstance || (camp as any).evolution_instance || "default"
             }));
-            
+
             setCampaigns(formattedCampaigns);
         } catch (err) {
             console.error(err);
@@ -127,7 +128,7 @@ export default function CampaignsPage() {
                 console.error('Auto-refresh error:', err);
             }
         }, 3000);
-        
+
         return () => clearInterval(interval);
     }, []);
 
@@ -189,7 +190,7 @@ export default function CampaignsPage() {
         }
     };
 
-    const filteredCampaigns = campaigns.filter(camp => 
+    const filteredCampaigns = campaigns.filter(camp =>
         camp.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -204,7 +205,7 @@ export default function CampaignsPage() {
                     <div className={`p-3 rounded-xl cursor-pointer transition-colors ${viewMode === 'grid' ? 'bg-gray-100 dark:bg-white/5 text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'}`} onClick={() => setViewMode('grid')} title="Visualização em grid">
                         <LayoutGrid size={22} />
                     </div>
-                    <div 
+                    <div
                         onClick={() => setViewMode('list')}
                         className={`p-3 rounded-xl cursor-pointer transition-colors ${viewMode === 'list' ? 'bg-gray-100 dark:bg-white/5 text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'}`}
                         title="Visualização em lista"
@@ -212,9 +213,9 @@ export default function CampaignsPage() {
                         <List size={22} />
                     </div>
                     <div className="relative">
-                        <div 
+                        <div
                             onClick={() => setShowNotifications(!showNotifications)}
-                            className="p-3 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors cursor-pointer rounded-xl hover:bg-gray-100 dark:hover:bg-white/5" 
+                            className="p-3 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors cursor-pointer rounded-xl hover:bg-gray-100 dark:hover:bg-white/5"
                             title="Notificações"
                         >
                             {activeCampaigns > 0 && <div className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>}
@@ -233,9 +234,9 @@ export default function CampaignsPage() {
                                                     Enviado: {campaign.sent}/{campaign.total}
                                                 </p>
                                                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1 mt-2">
-                                                    <div 
-                                                        className="bg-blue-600 h-1 rounded-full transition-all" 
-                                                        style={{width: `${(campaign.sent / campaign.total) * 100}%`}}
+                                                    <div
+                                                        className="bg-blue-600 h-1 rounded-full transition-all"
+                                                        style={{ width: `${(campaign.sent / campaign.total) * 100}%` }}
                                                     ></div>
                                                 </div>
                                             </div>
@@ -290,7 +291,7 @@ export default function CampaignsPage() {
                 <section className="p-10 max-w-[1600px] mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
                         {[
-                            { label: "Total de Envio", value: totalSent > 1000 ? `${(totalSent/1000).toFixed(1)}K` : totalSent.toString(), color: "blue" },
+                            { label: "Total de Envio", value: totalSent > 1000 ? `${(totalSent / 1000).toFixed(1)}K` : totalSent.toString(), color: "blue" },
                             { label: "Taxa de Entrega", value: `${deliveryRate.toFixed(1)}%`, color: "green" },
                             { label: "Contatos Totais", value: totalContacts.toString(), color: "purple" },
                             { label: "Campanhas Ativas", value: activeCampaigns.toString(), color: "orange" },
@@ -320,7 +321,7 @@ export default function CampaignsPage() {
                                     </div>
                                     <h3 className="text-xl font-bold mb-2">Ops! Algo deu errado</h3>
                                     <p className="text-gray-500 max-w-sm mb-8">{error}</p>
-                                    <button 
+                                    <button
                                         onClick={fetchCampaigns}
                                         className="bg-gray-900 dark:bg-white text-white dark:text-black px-6 py-2 rounded-full font-bold transition-all hover:scale-105"
                                     >
@@ -339,115 +340,115 @@ export default function CampaignsPage() {
                                     </Link>
                                 </div>
                             ) : (
-                                filteredCampaigns.map((camp, i) => 
+                                filteredCampaigns.map((camp, i) =>
                                     viewMode === 'grid' ? (
-                                    <motion.div
-                                        layout
-                                        initial={{ opacity: 0, scale: 0.95 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ duration: 0.4, delay: i * 0.1 }}
-                                        key={camp.id}
-                                        className="group bg-white dark:bg-[#121214] border border-gray-200 dark:border-white/5 rounded-[2rem] p-7 transition-all hover:shadow-xl hover:shadow-gray-200 dark:hover:shadow-2xl dark:hover:shadow-blue-500/5 hover:border-blue-300 dark:hover:border-blue-500/20 relative"
-                                    >
-                                        <div className="flex justify-between items-start mb-6">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-500 bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded-md">
-                                                        {camp.type}
-                                                    </span>
+                                        <motion.div
+                                            layout
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ duration: 0.4, delay: i * 0.1 }}
+                                            key={camp.id}
+                                            className="group bg-white dark:bg-[#121214] border border-gray-200 dark:border-white/5 rounded-[2rem] p-7 transition-all hover:shadow-xl hover:shadow-gray-200 dark:hover:shadow-2xl dark:hover:shadow-blue-500/5 hover:border-blue-300 dark:hover:border-blue-500/20 relative"
+                                        >
+                                            <div className="flex justify-between items-start mb-6">
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-500 bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded-md">
+                                                            {camp.type}
+                                                        </span>
+                                                    </div>
+                                                    <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{camp.name}</h3>
                                                 </div>
-                                                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{camp.name}</h3>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {/* Start / Re-run Button */}
-                                                {(camp.status === 'pending' || camp.status === 'failed' || camp.status === 'completed') && (
-                                                    <button 
-                                                        onClick={() => handleStartCampaign(camp.id)}
-                                                        disabled={actionLoading === camp.id + '-start'}
-                                                        className="bg-blue-600 text-white p-2.5 rounded-full shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-all active:scale-95 flex items-center justify-center disabled:opacity-50"
-                                                        title={camp.status === 'pending' ? 'Iniciar Disparo' : 'Re-executar Campanha'}
-                                                    >
-                                                        {actionLoading === camp.id + '-start'
-                                                            ? <div className="w-4 h-4 border-2 border-white border-t-transparent animate-spin rounded-full" />
-                                                            : <Play fill="currentColor" size={14} />
-                                                        }
-                                                    </button>
-                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    {/* Start / Re-run Button */}
+                                                    {(camp.status === 'pending' || camp.status === 'failed' || camp.status === 'completed') && (
+                                                        <button
+                                                            onClick={() => handleStartCampaign(camp.id)}
+                                                            disabled={actionLoading === camp.id + '-start'}
+                                                            className="bg-blue-600 text-white p-2.5 rounded-full shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-all active:scale-95 flex items-center justify-center disabled:opacity-50"
+                                                            title={camp.status === 'pending' ? 'Iniciar Disparo' : 'Re-executar Campanha'}
+                                                        >
+                                                            {actionLoading === camp.id + '-start'
+                                                                ? <div className="w-4 h-4 border-2 border-white border-t-transparent animate-spin rounded-full" />
+                                                                : <Play fill="currentColor" size={14} />
+                                                            }
+                                                        </button>
+                                                    )}
 
-                                                {/* Action Menu */}
-                                                <div className="relative" ref={actionMenu === camp.id ? menuRef : undefined}>
-                                                    <button
-                                                        className="p-2.5 text-gray-400 dark:text-gray-600 hover:text-black dark:hover:text-white transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent hover:border-gray-200 dark:hover:border-white/10"
-                                                        onClick={() => setActionMenu(prev => prev === camp.id ? null : camp.id)}
-                                                    >
-                                                        <MoreVertical size={20} />
-                                                    </button>
+                                                    {/* Action Menu */}
+                                                    <div className="relative" ref={actionMenu === camp.id ? menuRef : undefined}>
+                                                        <button
+                                                            className="p-2.5 text-gray-400 dark:text-gray-600 hover:text-black dark:hover:text-white transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent hover:border-gray-200 dark:hover:border-white/10"
+                                                            onClick={() => setActionMenu(prev => prev === camp.id ? null : camp.id)}
+                                                        >
+                                                            <MoreVertical size={20} />
+                                                        </button>
 
-                                                    <AnimatePresence>
-                                                        {actionMenu === camp.id && (
-                                                            <motion.div
-                                                                initial={{ opacity: 0, scale: 0.95, y: -8 }}
-                                                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                                exit={{ opacity: 0, scale: 0.95, y: -8 }}
-                                                                transition={{ duration: 0.15 }}
-                                                                className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#1c1c1f] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-xl"
-                                                            >
-                                                                <Link
-                                                                    href={`/campaigns/${camp.id}/edit`}
-                                                                    className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                                                                    onClick={() => setActionMenu(null)}
+                                                        <AnimatePresence>
+                                                            {actionMenu === camp.id && (
+                                                                <motion.div
+                                                                    initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                                                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                                    exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                                                                    transition={{ duration: 0.15 }}
+                                                                    className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#1c1c1f] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-xl"
                                                                 >
-                                                                    <Pencil size={15} className="text-blue-500" />
-                                                                    Editar
-                                                                </Link>
-                                                                <button
-                                                                    onClick={() => handleDuplicate(camp.id)}
-                                                                    disabled={actionLoading === camp.id + '-dup'}
-                                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50 text-left"
-                                                                >
-                                                                    <Copy size={15} className="text-green-500" />
-                                                                    {actionLoading === camp.id + '-dup' ? 'Duplicando...' : 'Duplicar'}
-                                                                </button>
-                                                                <div className="border-t border-gray-100 dark:border-white/5" />
-                                                                <button
-                                                                    onClick={() => { setDeleteConfirm(camp.id); setActionMenu(null); }}
-                                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors text-left"
-                                                                >
-                                                                    <Trash2 size={15} />
-                                                                    Excluir
-                                                                </button>
-                                                            </motion.div>
-                                                        )}
-                                                    </AnimatePresence>
+                                                                    <Link
+                                                                        href={`/campaigns/${camp.id}/edit`}
+                                                                        className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                                                                        onClick={() => setActionMenu(null)}
+                                                                    >
+                                                                        <Pencil size={15} className="text-blue-500" />
+                                                                        Editar
+                                                                    </Link>
+                                                                    <button
+                                                                        onClick={() => handleDuplicate(camp.id)}
+                                                                        disabled={actionLoading === camp.id + '-dup'}
+                                                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50 text-left"
+                                                                    >
+                                                                        <Copy size={15} className="text-green-500" />
+                                                                        {actionLoading === camp.id + '-dup' ? 'Duplicando...' : 'Duplicar'}
+                                                                    </button>
+                                                                    <div className="border-t border-gray-100 dark:border-white/5" />
+                                                                    <button
+                                                                        onClick={() => { setDeleteConfirm(camp.id); setActionMenu(null); }}
+                                                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors text-left"
+                                                                    >
+                                                                        <Trash2 size={15} />
+                                                                        Excluir
+                                                                    </button>
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        <div className="grid grid-cols-3 gap-4 mb-6">
-                                            <div className="bg-gray-50 dark:bg-white/5 p-3 rounded-2xl border border-gray-100 dark:border-white/5 transition-colors group-hover:bg-white dark:group-hover:bg-white/10">
-                                                <p className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider mb-1">Total</p>
-                                                <p className="text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">{camp.total}</p>
-                                            </div>
-                                            <div className="bg-green-50/50 dark:bg-green-500/5 p-3 rounded-2xl border border-green-100/50 dark:border-green-500/10 transition-colors group-hover:bg-green-50 dark:group-hover:bg-green-500/10">
-                                                <p className="text-[10px] uppercase font-bold tracking-wider mb-1 text-green-600 dark:text-green-500/70">Sucesso</p>
-                                                <p className="text-xl font-bold tracking-tight text-green-600 dark:text-green-400">{camp.sent}</p>
-                                            </div>
-                                            <div className={`${camp.error > 0 ? 'bg-red-50/50 dark:bg-red-500/5 border-red-100/50 dark:border-red-500/10' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-white/5'} p-3 rounded-2xl border transition-colors group-hover:bg-red-50 dark:group-hover:bg-red-500/10`}>
-                                                <p className={`text-[10px] uppercase font-bold tracking-wider mb-1 ${camp.error > 0 ? 'text-red-600 dark:text-red-500/70' : 'text-gray-400 dark:text-gray-500'}`}>Falhas</p>
-                                                <p className={`text-xl font-bold tracking-tight ${camp.error > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>{camp.error}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-8 pt-6 border-t border-gray-100 dark:border-white/5 flex justify-between items-center text-xs font-medium">
-                                            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                                                <div className="p-1 bg-gray-100 dark:bg-white/5 rounded-full">
-                                                    <StatusIcon status={camp.status} />
+                                            <div className="grid grid-cols-3 gap-4 mb-6">
+                                                <div className="bg-gray-50 dark:bg-white/5 p-3 rounded-2xl border border-gray-100 dark:border-white/5 transition-colors group-hover:bg-white dark:group-hover:bg-white/10">
+                                                    <p className="text-[10px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider mb-1">Total</p>
+                                                    <p className="text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100">{camp.total}</p>
                                                 </div>
-                                                {camp.date}
+                                                <div className="bg-green-50/50 dark:bg-green-500/5 p-3 rounded-2xl border border-green-100/50 dark:border-green-500/10 transition-colors group-hover:bg-green-50 dark:group-hover:bg-green-500/10">
+                                                    <p className="text-[10px] uppercase font-bold tracking-wider mb-1 text-green-600 dark:text-green-500/70">Sucesso</p>
+                                                    <p className="text-xl font-bold tracking-tight text-green-600 dark:text-green-400">{camp.sent}</p>
+                                                </div>
+                                                <div className={`${camp.error > 0 ? 'bg-red-50/50 dark:bg-red-500/5 border-red-100/50 dark:border-red-500/10' : 'bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-white/5'} p-3 rounded-2xl border transition-colors group-hover:bg-red-50 dark:group-hover:bg-red-500/10`}>
+                                                    <p className={`text-[10px] uppercase font-bold tracking-wider mb-1 ${camp.error > 0 ? 'text-red-600 dark:text-red-500/70' : 'text-gray-400 dark:text-gray-500'}`}>Falhas</p>
+                                                    <p className={`text-xl font-bold tracking-tight ${camp.error > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>{camp.error}</p>
+                                                </div>
                                             </div>
-                                            <StatusBadge status={camp.status} />
-                                        </div>
-                                    </motion.div>
+
+                                            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-white/5 flex justify-between items-center text-xs font-medium">
+                                                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                                                    <div className="p-1 bg-gray-100 dark:bg-white/5 rounded-full">
+                                                        <StatusIcon status={camp.status} />
+                                                    </div>
+                                                    {camp.date}
+                                                </div>
+                                                <StatusBadge status={camp.status} />
+                                            </div>
+                                        </motion.div>
                                     ) : (
                                         // List view
                                         <motion.div
@@ -477,9 +478,9 @@ export default function CampaignsPage() {
                                                 </div>
                                                 <div className="w-20">
                                                     <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                                        <div 
-                                                            className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all" 
-                                                            style={{width: `${camp.total > 0 ? (camp.sent / camp.total) * 100 : 0}%`}}
+                                                        <div
+                                                            className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all"
+                                                            style={{ width: `${camp.total > 0 ? (camp.sent / camp.total) * 100 : 0}%` }}
                                                         ></div>
                                                     </div>
                                                 </div>
@@ -492,7 +493,7 @@ export default function CampaignsPage() {
                                                 </div>
 
                                                 {(camp.status === 'pending' || camp.status === 'failed' || camp.status === 'completed') && (
-                                                    <button 
+                                                    <button
                                                         onClick={() => handleStartCampaign(camp.id)}
                                                         disabled={actionLoading === camp.id + '-start'}
                                                         className="bg-blue-600 text-white p-2 rounded-full shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-all active:scale-95 flex items-center justify-center disabled:opacity-50"
