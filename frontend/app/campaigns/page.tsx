@@ -28,7 +28,8 @@ interface CampaignData {
     sentSuccess?: number;
     sentError?: number;
     createdAt: string;
-    evolutionInstance: string;
+    evolutionInstance?: string;
+    evolution_instance?: string;
     inboxName?: string;
 }
 
@@ -93,10 +94,11 @@ export default function CampaignsPage() {
 
             setCampaigns(formattedCampaigns);
             if (isInitial) setError(null);
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
             if (isInitial || campaigns.length === 0) {
-                setError('Não foi possível carregar as campanhas. Verifique sua conexão.');
+                const techDetail = err.message || 'Erro de conexão com o servidor';
+                setError(`Não foi possível carregar as campanhas. Detalhe: ${techDetail}`);
             }
         }
     };

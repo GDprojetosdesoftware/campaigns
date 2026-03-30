@@ -224,26 +224,28 @@ export class ChatwootService {
 
   async getLabels(accountId: number, token?: string) {
     try {
-      this.logger.log(`[Diagnostic] Fetching labels for account ${accountId} (Token length: ${token?.length || 0})`);
+      this.logger.log(`[Diagnostic] Fetching labels for account ${accountId}`);
       const url = `/api/v1/accounts/${accountId}/labels`;
       const config = this.getRequestConfig(token);
       
       const response = await this.httpClient.get(url, config);
       
-      if (!response.data || !response.data.payload) {
-        this.logger.warn(`[Diagnostic] No payload found in labels response for account ${accountId}`);
+      // Tenta extrair de múltiplos lugares (algumas versões do chatwoot mudam isso)
+      const labels = response.data?.payload || response.data?.data?.payload || response.data || [];
+      
+      if (!Array.isArray(labels)) {
+        this.logger.warn(`[Diagnostic] Labels response is not an array for account ${accountId}`, response.data);
         return [];
       }
 
-      this.logger.log(`[Diagnostic] Successfully fetched ${response.data.payload.length} labels for account ${accountId}`);
-      return response.data.payload;
-    } catch (error) {
-      this.logger.error(`[Diagnostic] Error fetching labels for account ${accountId}: ${error.message}`);
+      this.logger.log(`[Diagnostic] Successfully fetched ${labels.length} labels for account ${accountId}`);
+      return labels;
+    } catch (error: any) {
+      this.logger.error(`[Diagnostic] Error fetching labels: ${error.message}`);
       if (error.response) {
-        this.logger.error(`[Diagnostic] Response status: ${error.response.status}`);
-        this.logger.error(`[Diagnostic] Response detail: ${JSON.stringify(error.response.data)}`);
+        this.logger.error(`[Diagnostic] Status: ${error.response.status} | Data: ${JSON.stringify(error.response.data)}`);
       }
-      throw error;
+      return []; // Melhor retornar vazio do que quebrar o dashboard
     }
   }
 
@@ -311,15 +313,23 @@ export class ChatwootService {
 
   async getInboxes(accountId: number, token?: string) {
     try {
-      this.logger.log(`Fetching inboxes for account ${accountId}`);
+      this.logger.log(`[Diagnostic] Fetching inboxes for account ${accountId}`);
       const response = await this.httpClient.get(
         `/api/v1/accounts/${accountId}/inboxes`,
         this.getRequestConfig(token)
       );
-      return response.data.payload;
-    } catch (error) {
-      this.logger.error(`Error fetching inboxes: ${error.message}`);
-      throw error;
+      
+      const inboxes = response.data?.payload || response.data?.data?.payload || response.data || [];
+      
+      if (!Array.isArray(inboxes)) {
+        this.logger.warn(`[Diagnostic] Inboxes response is not an array`, response.data);
+        return [];
+      }
+      
+      return inboxes;
+    } catch (error: any) {
+      this.logger.error(`[Diagnostic] Error fetching inboxes: ${error.message}`);
+      return [];
     }
   }
 
