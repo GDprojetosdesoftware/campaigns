@@ -58,8 +58,8 @@ export default function CampaignsPage() {
         console.log('Total de Campanhas Ativas:', activeCampaigns);
     }, [campaigns]);
 
-    const fetchCampaigns = async () => {
-        setError(null);
+    const fetchCampaigns = async (isInitial = false) => {
+        if (isInitial) setError(null);
         try {
             const res = await apiFetch('/campaigns');
             
@@ -67,10 +67,17 @@ export default function CampaignsPage() {
                 const errorData = await res.json().catch(() => ({}));
                 const status = res.status;
                 const msg = errorData.message || res.statusText || 'Erro desconhecido no servidor';
-                throw new Error(`[HTTP ${status}] ${msg}`);
+                console.error(`[API Error] /campaigns returned ${status}: ${msg}`);
+                if (isInitial) throw new Error(`[HTTP ${status}] ${msg}`);
+                return; // Ignora erro em background refresh se já temos dados
             }
 
             const data = await res.json();
+            if (!Array.isArray(data)) {
+                console.error('[API Error] Expected array from /campaigns, got:', data);
+                if (isInitial) throw new Error('O servidor não enviou uma lista válida de campanhas.');
+                return;
+            }
 
             const formattedCampaigns: Campaign[] = data.map((camp: CampaignData) => ({
                 id: camp.id,
@@ -85,10 +92,12 @@ export default function CampaignsPage() {
             }));
 
             setCampaigns(formattedCampaigns);
+            if (isInitial) setError(null);
         } catch (err) {
             console.error(err);
-            setError('Não foi possível carregar as campanhas. Verifique sua conexão.');
-            setCampaigns([]);
+            if (isInitial || campaigns.length === 0) {
+                setError('Não foi possível carregar as campanhas. Verifique sua conexão.');
+            }
         }
     };
 
@@ -96,41 +105,22 @@ export default function CampaignsPage() {
         const setup = async () => {
             await initChatwootSession();
             setIsInitialized(true);
-            await fetchCampaigns();
+            await fetchCampaigns(true); // Carregamento inicial crítico
             setLoading(false);
         };
         setup();
     }, []);
 
-    // Auto-refresh a cada 3 segundos para atualizar o contador "Campanhas Ativas"
+    // Auto-refresh inteligente (não quebra a tela se falhar)
     useEffect(() => {
         if (!isInitialized) return;
 
-        const interval = setInterval(async () => {
-            try {
-                const res = await apiFetch('/campaigns');
-                if (res.ok) {
-                    const data = await res.json();
-                    const formattedCampaigns: Campaign[] = data.map((camp: CampaignData) => ({
-                        id: camp.id,
-                        name: camp.name,
-                        status: camp.status,
-                        total: camp.totalContacts || 0,
-                        sent: camp.sentSuccess || 0,
-                        error: camp.sentError || 0,
-                        date: new Date(camp.createdAt).toLocaleDateString('pt-BR'),
-                        type: camp.inboxName || 'WhatsApp',
-                        instance_name: camp.evolutionInstance || (camp as any).evolution_instance || "default"
-                    }));
-                    setCampaigns(formattedCampaigns);
-                }
-            } catch (err) {
-                console.error('Auto-refresh error:', err);
-            }
+        const interval = setInterval(() => {
+            fetchCampaigns(false); // Background refresh silencioso
         }, 3000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [isInitialized]);
 
     // Close dropdown on outside click
     useEffect(() => {

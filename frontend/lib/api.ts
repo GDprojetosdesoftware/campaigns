@@ -59,7 +59,7 @@ if (typeof window !== 'undefined') {
  * Tenta capturar a sessão do Chatwoot de várias fontes.
  * Aguarda até 1.5s pelo postMessage se não encontrar na URL.
  */
-export const initChatwootSession = async (timeoutMs = 1500): Promise<boolean> => {
+export const initChatwootSession = async (timeoutMs = 2000): Promise<boolean> => {
     if (typeof window === 'undefined') return false;
 
     const check = () => {
@@ -67,32 +67,42 @@ export const initChatwootSession = async (timeoutMs = 1500): Promise<boolean> =>
         const searchParams = new URLSearchParams(window.location.search);
         const urlId = searchParams.get('account_id') || searchParams.get('accountId');
         const urlToken = searchParams.get('token');
-        if (urlId) sessionStorage.setItem('chatwootAccountId', urlId);
-        if (urlToken) sessionStorage.setItem('chatwootToken', urlToken);
+        
+        if (urlId && urlId !== 'undefined') sessionStorage.setItem('chatwootAccountId', urlId);
+        if (urlToken && urlToken !== 'undefined') sessionStorage.setItem('chatwootToken', urlToken);
 
-        // Tenta do Referer
+        // Tenta do Referer se não houver ID
         if (!sessionStorage.getItem('chatwootAccountId')) {
             const aidFromPath = extractAccountIdFromUrl(window.location.pathname) || 
                               extractAccountIdFromUrl(document.referrer);
             if (aidFromPath) sessionStorage.setItem('chatwootAccountId', aidFromPath);
         }
 
-        return !!(sessionStorage.getItem('chatwootAccountId') && sessionStorage.getItem('chatwootToken'));
+        const hasId = !!sessionStorage.getItem('chatwootAccountId');
+        const hasToken = !!sessionStorage.getItem('chatwootToken');
+        
+        return hasId && hasToken;
     };
 
     if (check()) return true;
 
     // Se não encontrou, aguarda o postMessage (polling curto)
     return new Promise((resolve) => {
-        const start = Date.now();
+        let attempts = 0;
+        const maxAttempts = timeoutMs / 100;
+        
         const interval = setInterval(() => {
+            attempts++;
             if (check()) {
                 clearInterval(interval);
+                console.log('[API] Sessão validada após polling');
                 resolve(true);
-            } else if (Date.now() - start > timeoutMs) {
+            } else if (attempts >= maxAttempts) {
                 clearInterval(interval);
-                console.warn('[API] Timeout aguardando sessão do Chatwoot');
-                resolve(false);
+                const id = sessionStorage.getItem('chatwootAccountId');
+                const tok = sessionStorage.getItem('chatwootToken');
+                console.warn(`[API] Fim do polling. ID: ${!!id}, Token: ${!!tok}`);
+                resolve(!!(id && tok));
             }
         }, 100);
     });

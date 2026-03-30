@@ -171,6 +171,16 @@ export class CampaignsService {
     });
   }
 
+  async checkDb() {
+    try {
+      await this.campaignRepository.query('SELECT 1');
+      return true;
+    } catch (e) {
+      this.logger.error(`Database health check failed: ${e.message}`);
+      return false;
+    }
+  }
+
   async findOne(id: number, accountId?: number) {
     const aid = accountId || this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
     const filter = aid && !isNaN(aid) ? { id, accountId: Number(aid) } : { id };

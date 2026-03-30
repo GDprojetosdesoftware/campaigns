@@ -115,6 +115,24 @@ export class CampaignsController {
     }
   }
 
+  @Get('health')
+  async health() {
+    try {
+      const dbStatus = await this.campaignsService.checkDb();
+      return {
+        status: 'ok',
+        database: dbStatus ? 'connected' : 'error',
+        timestamp: new Date().toISOString(),
+        env: {
+          chatwoot_url: process.env.CHATWOOT_API_URL ? 'set' : 'missing',
+          chatwoot_id: process.env.CHATWOOT_ACCOUNT_ID ? 'set' : 'missing'
+        }
+      };
+    } catch (error) {
+      return { status: 'error', message: error.message };
+    }
+  }
+
   @Get('debug-filter/:label')
   async debugFilter(@Param('label') label: string) {
     try {
