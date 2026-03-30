@@ -391,63 +391,68 @@ export default function NewCampaignPage() {
 
                                     <div className="space-y-6">
                                         <div className="group">
-                                            <div className="flex items-center gap-4 mb-6">
-                                               <input 
-                                                    type="file" 
-                                                    ref={fileInputRef} 
-                                                    onChange={handleFileChange} 
-                                                    className="hidden" 
-                                                    accept="image/*,video/*,audio/*,application/pdf,.doc,.docx"
+                                            <label className="text-[10px] uppercase font-bold text-gray-400 tracking-widest pl-1 mb-3 block group-focus-within:text-purple-500 transition-colors">Legenda / Mensagem</label>
+                                            
+                                            <div className="flex gap-2 mb-4 items-end">
+                                                <textarea
+                                                    required={!formData.mediaUrl}
+                                                    rows={6}
+                                                    placeholder="Olá {{name}}, tudo bem? Estamos com uma promoção especial..."
+                                                    className="flex-1 bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-[2rem] p-6 text-lg focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/5 outline-none transition-all resize-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                                                    value={formData.message}
+                                                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                                                 />
-                                               <button 
-                                                    type="button" 
-                                                    disabled={isUploadingMedia}
-                                                    onClick={() => fileInputRef.current?.click()}
-                                                    className={`flex-1 flex flex-col items-center justify-center gap-3 p-8 rounded-[2rem] border-2 border-dashed transition-all ${
-                                                        formData.mediaUrl 
-                                                            ? "border-purple-500 bg-purple-50/50 dark:bg-purple-900/10" 
-                                                            : "border-gray-200 dark:border-gray-800 hover:border-purple-400 dark:hover:border-purple-600 bg-gray-50/50 dark:bg-gray-800/10"
-                                                    }`}
-                                               >
-                                                    {isUploadingMedia ? (
-                                                        <Loader2 className="text-purple-600 animate-spin" size={32} />
-                                                    ) : formData.mediaUrl ? (
-                                                        <CheckCircle2 className="text-purple-600" size={32} />
-                                                    ) : (
-                                                        <Upload className="text-gray-400" size={32} />
-                                                    )}
-                                                    <div className="text-center">
-                                                        <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                                                            {formData.mediaUrl ? "Mídia Carregada" : "Anexar Mídia"}
-                                                        </p>
-                                                        <p className="text-[10px] text-gray-500 mt-1 uppercase tracking-widest leading-none">
-                                                            {formData.mediaUrl ? "Clique para trocar" : "Imagem, Vídeo ou Documento"}
-                                                        </p>
-                                                    </div>
-                                               </button>
-
-                                               {formData.mediaUrl && (
-                                                   <button 
+                                                
+                                                <div className="flex flex-col gap-2">
+                                                    <input 
+                                                        type="file" 
+                                                        ref={fileInputRef} 
+                                                        onChange={handleFileChange} 
+                                                        className="hidden" 
+                                                        accept="image/*,video/*,audio/*,application/pdf,.doc,.docx"
+                                                    />
+                                                    <button 
                                                         type="button" 
-                                                        onClick={() => { setFormData({...formData, mediaUrl: '', mediaType: ''}); setMediaPreview(null); }}
-                                                        className="w-12 h-12 flex items-center justify-center bg-red-50 dark:bg-red-900/20 text-red-600 rounded-2xl border border-red-100 dark:border-red-800/50 hover:bg-red-600 hover:text-white transition-all"
-                                                   >
-                                                        <Trash2 size={20} />
-                                                   </button>
-                                               )}
+                                                        disabled={isUploadingMedia}
+                                                        onClick={() => fileInputRef.current?.click()}
+                                                        className={`w-12 h-12 flex items-center justify-center rounded-2xl border transition-all ${
+                                                            formData.mediaUrl 
+                                                                ? "bg-purple-100 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800 text-purple-600 dark:text-purple-400" 
+                                                                : "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-purple-400 dark:hover:border-purple-600 hover:text-purple-600 dark:hover:text-purple-400"
+                                                        } ${isUploadingMedia ? 'opacity-60' : ''}`}
+                                                    >
+                                                        {isUploadingMedia ? (
+                                                            <Loader2 className="animate-spin" size={20} />
+                                                        ) : formData.mediaUrl ? (
+                                                            <CheckCircle2 size={20} />
+                                                        ) : (
+                                                            <Upload size={20} />
+                                                        )}
+                                                    </button>
+                                                    
+                                                    {formData.mediaUrl && (
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => { setFormData({...formData, mediaUrl: '', mediaType: ''}); setMediaPreview(null); }}
+                                                            className="w-12 h-12 flex items-center justify-center bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-2xl border border-red-100 dark:border-red-800/50 hover:bg-red-600 hover:text-white transition-all"
+                                                        >
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             {mediaPreview && (
-                                                <div className="mb-8 rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-lg bg-black/5">
+                                                <div className="mb-6 rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-lg bg-black/5">
                                                     {formData.mediaType === 'image' && (
-                                                        <img src={mediaPreview.startsWith('/') ? `${API_BASE_URL}${mediaPreview}` : mediaPreview} className="w-full h-auto max-h-[300px] object-contain" alt="Preview" />
+                                                        <img src={mediaPreview.startsWith('/') ? `${API_BASE_URL}${mediaPreview}` : mediaPreview} className="w-full h-auto max-h-[250px] object-contain" alt="Preview" />
                                                     )}
                                                     {formData.mediaType === 'video' && (
                                                         <video src={mediaPreview.startsWith('/') ? `${API_BASE_URL}${mediaPreview}` : mediaPreview} className="w-full h-auto" controls />
                                                     )}
                                                     {(formData.mediaType === 'document' || formData.mediaType === 'audio') && (
-                                                        <div className="p-8 flex items-center gap-4 bg-gray-50 dark:bg-gray-800/50">
-                                                            {formData.mediaType === 'audio' ? <Music className="text-purple-600" /> : <FileText className="text-purple-600" />}
+                                                        <div className="p-6 flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50">
+                                                            {formData.mediaType === 'audio' ? <Music className="text-purple-600 flex-shrink-0" size={24} /> : <FileText className="text-purple-600 flex-shrink-0" size={24} />}
                                                             <div className="flex-1 truncate">
                                                                 <p className="text-sm font-bold truncate">Arquivo selecionado</p>
                                                                 <p className="text-[10px] text-gray-500 uppercase tracking-widest">{formData.mediaType}</p>
@@ -457,18 +462,8 @@ export default function NewCampaignPage() {
                                                 </div>
                                             )}
 
-                                            <label className="text-[10px] uppercase font-bold text-gray-400 tracking-widest pl-1 mb-2 block group-focus-within:text-purple-500 transition-colors">Legenda / Mensagem</label>
-                                            <textarea
-                                                required={!formData.mediaUrl}
-                                                rows={6}
-                                                placeholder="Olá {{name}}, tudo bem? Estamos com uma promoção especial..."
-                                                className="w-full bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-[2rem] p-8 text-lg focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/5 outline-none transition-all resize-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
-                                                value={formData.message}
-                                                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                                            />
-                                            <div className="mt-4 flex flex-wrap gap-2">
+                                            <div className="mt-4 flex flex-wrap gap-2 items-center justify-between">
                                                 <button type="button" onClick={() => setFormData({...formData, message: formData.message + ' {{name}}'})} className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-[10px] text-gray-600 dark:text-gray-400 font-black uppercase tracking-wider transition-colors border border-gray-200 dark:border-gray-700">Inserir Nome</button>
-                                                <div className="flex-1"></div>
                                                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1">
                                                     <CheckCircle2 size={12} className="text-green-500" />
                                                     Suporta Spintax
