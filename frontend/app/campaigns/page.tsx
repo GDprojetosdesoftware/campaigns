@@ -265,7 +265,7 @@ export default function CampaignsPage() {
                             />
                         </div>
                         <button
-                            onClick={fetchCampaigns}
+                            onClick={() => fetchCampaigns(true)}
                             className="p-2.5 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-white/5"
                             title="Atualizar"
                         >
@@ -312,7 +312,7 @@ export default function CampaignsPage() {
                                     <h3 className="text-xl font-bold mb-2">Ops! Algo deu errado</h3>
                                     <p className="text-gray-500 max-w-sm mb-8">{error}</p>
                                     <button
-                                        onClick={fetchCampaigns}
+                                        onClick={() => fetchCampaigns(true)}
                                         className="bg-gray-900 dark:bg-white text-white dark:text-black px-6 py-2 rounded-full font-bold transition-all hover:scale-105"
                                     >
                                         Tentar Novamente
