@@ -28,45 +28,64 @@ if (typeof window !== 'undefined') {
         const data = event.data;
         if (!data) return;
 
-        // Chatwoot envia o token no evento 'appContext' ou similar
-        if (data.event === 'appContext' || data.type === 'chatwoot_ready' || data.token) {
-            const token = data.token || data.api_access_token;
-            const accountId = data.accountId || data.account_id;
+        // Formatos variados de mensagens do Chatwoot
+        const isAuthMessage = data.event === 'appContext' || data.type === 'chatwoot_ready' || data.token;
+        
+        if (isAuthMessage) {
+            const token = data.token || data.api_access_token || data.data?.token;
+            const accountId = data.accountId || data.account_id || data.data?.accountId;
 
             if (token) sessionStorage.setItem('chatwootToken', token);
             if (accountId) sessionStorage.setItem('chatwootAccountId', String(accountId));
             
-            console.log('[API] Dados capturados via postMessage:', { accountId, hasToken: !!token });
+            if (token || accountId) {
+                console.log('[API] Dados de autenticação capturados via postMessage');
+            }
         }
     });
 }
 
 /**
- * Tenta capturar a sessão do Chatwoot de várias fontes (URL, Referer, etc)
+ * Tenta capturar a sessão do Chatwoot de várias fontes.
+ * Aguarda até 1.5s pelo postMessage se não encontrar na URL.
  */
-export const initChatwootSession = async (): Promise<boolean> => {
+export const initChatwootSession = async (timeoutMs = 1500): Promise<boolean> => {
     if (typeof window === 'undefined') return false;
 
-    // 1. Tenta pegar da URL atual (iframe params)
-    const searchParams = new URLSearchParams(window.location.search);
-    const urlId = searchParams.get('account_id') || searchParams.get('accountId');
-    const urlToken = searchParams.get('token');
+    const check = () => {
+        // Tenta da URL primeiro
+        const searchParams = new URLSearchParams(window.location.search);
+        const urlId = searchParams.get('account_id') || searchParams.get('accountId');
+        const urlToken = searchParams.get('token');
+        if (urlId) sessionStorage.setItem('chatwootAccountId', urlId);
+        if (urlToken) sessionStorage.setItem('chatwootToken', urlToken);
 
-    if (urlId) sessionStorage.setItem('chatwootAccountId', urlId);
-    if (urlToken) sessionStorage.setItem('chatwootToken', urlToken);
+        // Tenta do Referer
+        if (!sessionStorage.getItem('chatwootAccountId')) {
+            const aidFromPath = extractAccountIdFromUrl(window.location.pathname) || 
+                              extractAccountIdFromUrl(document.referrer);
+            if (aidFromPath) sessionStorage.setItem('chatwootAccountId', aidFromPath);
+        }
 
-    // 2. Tenta extrair da URL do "Pai" (Referer) se estiver em iframe
-    if (!sessionStorage.getItem('chatwootAccountId')) {
-        const aidFromPath = extractAccountIdFromUrl(window.location.pathname) || 
-                          extractAccountIdFromUrl(document.referrer);
-        if (aidFromPath) sessionStorage.setItem('chatwootAccountId', aidFromPath);
-    }
+        return !!(sessionStorage.getItem('chatwootAccountId') && sessionStorage.getItem('chatwootToken'));
+    };
 
-    const hasId = !!sessionStorage.getItem('chatwootAccountId');
-    const hasTok = !!sessionStorage.getItem('chatwootToken');
+    if (check()) return true;
 
-    console.log(`[API] Estado da Sessão - ID: ${hasId}, Token: ${hasTok}`);
-    return hasId && hasTok;
+    // Se não encontrou, aguarda o postMessage (polling curto)
+    return new Promise((resolve) => {
+        const start = Date.now();
+        const interval = setInterval(() => {
+            if (check()) {
+                clearInterval(interval);
+                resolve(true);
+            } else if (Date.now() - start > timeoutMs) {
+                clearInterval(interval);
+                console.warn('[API] Timeout aguardando sessão do Chatwoot');
+                resolve(false);
+            }
+        }, 100);
+    });
 };
 
 /**
@@ -81,7 +100,6 @@ export const apiFetch = async (endpoint: string, options?: RequestInit) => {
     if (typeof window !== 'undefined') {
         const aid = sessionStorage.getItem('chatwootAccountId');
         const token = sessionStorage.getItem('chatwootToken');
-        
         if (aid) headers.set('X-Account-Id', aid);
         if (token) headers.set('X-Auth-Token', token);
     }
@@ -90,8 +108,5 @@ export const apiFetch = async (endpoint: string, options?: RequestInit) => {
         headers.set('Content-Type', 'application/json');
     }
 
-    return fetch(url, {
-        ...options,
-        headers
-    });
+    return fetch(url, { ...options, headers });
 };

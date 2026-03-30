@@ -224,14 +224,25 @@ export class ChatwootService {
 
   async getLabels(accountId: number, token?: string) {
     try {
-      this.logger.log(`Fetching labels for account ${accountId}`);
-      const response = await this.httpClient.get(
-        `/api/v1/accounts/${accountId}/labels`,
-        this.getRequestConfig(token)
-      );
+      this.logger.log(`[Diagnostic] Fetching labels for account ${accountId} (Token length: ${token?.length || 0})`);
+      const url = `/api/v1/accounts/${accountId}/labels`;
+      const config = this.getRequestConfig(token);
+      
+      const response = await this.httpClient.get(url, config);
+      
+      if (!response.data || !response.data.payload) {
+        this.logger.warn(`[Diagnostic] No payload found in labels response for account ${accountId}`);
+        return [];
+      }
+
+      this.logger.log(`[Diagnostic] Successfully fetched ${response.data.payload.length} labels for account ${accountId}`);
       return response.data.payload;
     } catch (error) {
-      this.logger.error(`Error fetching labels: ${error.message}`);
+      this.logger.error(`[Diagnostic] Error fetching labels for account ${accountId}: ${error.message}`);
+      if (error.response) {
+        this.logger.error(`[Diagnostic] Response status: ${error.response.status}`);
+        this.logger.error(`[Diagnostic] Response detail: ${JSON.stringify(error.response.data)}`);
+      }
       throw error;
     }
   }
