@@ -357,11 +357,32 @@ export class ChatwootService {
     try {
       // Convert relative URLs to absolute URLs so Chatwoot can download them
       let absoluteUrl = fileUrl;
+      
       if (fileUrl && fileUrl.startsWith('/')) {
+        // É uma URL relativa
         const backendUrl = this.configService.get<string>('BACKEND_PUBLIC_URL') || 
                           process.env.BACKEND_PUBLIC_URL || 
                           'http://campaign-backend:3000';
-        absoluteUrl = `${backendUrl}${fileUrl}`;
+        let sanitizedBase = backendUrl;
+        
+        // Garantir protocolo
+        if (!sanitizedBase.startsWith('http://') && !sanitizedBase.startsWith('https://')) {
+          sanitizedBase = `https://${sanitizedBase}`;
+        }
+        if (sanitizedBase.endsWith('/')) {
+          sanitizedBase = sanitizedBase.slice(0, -1);
+        }
+        
+        absoluteUrl = `${sanitizedBase}${fileUrl}`;
+      }
+      // Se for URL sem protocolo (ex: campaigns.ranoverchat.com.br/api/...)
+      else if (fileUrl && !fileUrl.startsWith('http')) {
+        if (fileUrl.includes('localhost') || fileUrl.includes('127.0.0.1') || fileUrl.includes('campaign-backend')) {
+          absoluteUrl = `http://${fileUrl}`;
+        } else {
+          // Assumir HTTPS para domínios públicos
+          absoluteUrl = `https://${fileUrl}`;
+        }
       }
       
       this.logger.log(`Sending media message to conversation ${conversationId} for account ${accountId}. URL: ${absoluteUrl}`);

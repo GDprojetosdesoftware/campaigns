@@ -123,19 +123,27 @@ export class EvolutionService {
                         process.env.APP_URL ||
                         process.env.BACKEND_PUBLIC_URL ||
                         'http://campaign-backend:3000';
-        const host = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-        finalMediaUrl = `${host}${mediaUrl}`;
+        
+        // Garantir que base tem protocolo
+        let sanitizedBase = baseUrl;
+        if (!sanitizedBase.startsWith('http://') && !sanitizedBase.startsWith('https://')) {
+          sanitizedBase = `https://${sanitizedBase}`;
+        }
+        if (sanitizedBase.endsWith('/')) {
+          sanitizedBase = sanitizedBase.slice(0, -1);
+        }
+        
+        finalMediaUrl = `${sanitizedBase}${mediaUrl}`;
       }
-      // Se for URL absoluta, usa como está
-      // Se for relativa sem /, trata como relativa para o APP_URL
+      // Se for URL absoluta, mas sem protocolo
       else if (!mediaUrl.startsWith('http')) {
-        const baseUrl = this.configService.get<string>('APP_URL') || 
-                        this.configService.get<string>('BACKEND_PUBLIC_URL') ||
-                        process.env.APP_URL ||
-                        process.env.BACKEND_PUBLIC_URL ||
-                        'http://campaign-backend:3000';
-        const host = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-        finalMediaUrl = `${host}/${mediaUrl}`;
+        // URL sem protocolo - adicionar baseado no conteúdo
+        if (mediaUrl.includes('localhost') || mediaUrl.includes('127.0.0.1') || mediaUrl.includes('campaign-backend')) {
+          finalMediaUrl = `http://${mediaUrl}`;
+        } else {
+          // Assumir HTTPS para domínios públicos
+          finalMediaUrl = `https://${mediaUrl}`;
+        }
       }
 
       const mediaTypeLower = mediaType.toLowerCase();

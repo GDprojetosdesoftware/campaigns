@@ -177,7 +177,24 @@ export class CampaignsController {
   }
 
   private buildPublicUrl(relativeUrl: string): string {
-    const backendPublicUrl = process.env.BACKEND_PUBLIC_URL || 'http://campaign-backend:3000';
+    let backendPublicUrl = process.env.BACKEND_PUBLIC_URL || 'http://campaign-backend:3000';
+    
+    // Garantir que a URL tenha protocolo
+    if (!backendPublicUrl.startsWith('http://') && !backendPublicUrl.startsWith('https://')) {
+      // Se não tem protocolo, deduzir baseado no conteúdo
+      if (backendPublicUrl.includes('localhost') || backendPublicUrl.includes('campaign-backend') || backendPublicUrl.includes('127.0.0.1')) {
+        backendPublicUrl = `http://${backendPublicUrl}`;
+      } else {
+        // Assumir HTTPS para produção
+        backendPublicUrl = `https://${backendPublicUrl}`;
+      }
+    }
+    
+    // Remover trailing slash para evitar duplos
+    if (backendPublicUrl.endsWith('/')) {
+      backendPublicUrl = backendPublicUrl.slice(0, -1);
+    }
+    
     return `${backendPublicUrl}${relativeUrl}`;
   }
 

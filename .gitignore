@@ -10,3 +10,4 @@ test-*
 .vscode/
 .gemini/
 *.tmp
+TROUBLESHOOTING_MEDIA.md
