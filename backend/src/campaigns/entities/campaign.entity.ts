@@ -41,6 +41,9 @@ export class Campaign {
   mediaUrl: string;
 
   @Column({ nullable: true })
+  mediaPublicUrl: string; // URL absoluta para Chatwoot e reenvios
+
+  @Column({ nullable: true })
   mediaType: string; // 'image', 'video', 'audio', 'document'
 
   @Column({

@@ -56,7 +56,7 @@ export class CampaignProcessor extends WorkerHost {
             await this.evolutionService.sendMedia(
                 campaign.evolutionInstance,
                 phone,
-                campaign.mediaUrl,
+                campaign.mediaPublicUrl || campaign.mediaUrl, // Usa URL absoluta se disponível
                 campaign.mediaType || 'image',
                 personalizedMessage
             );
@@ -67,7 +67,7 @@ export class CampaignProcessor extends WorkerHost {
                 campaign.accountId,
                 conversation.id,
                 personalizedMessage,
-                campaign.mediaUrl,
+                campaign.mediaPublicUrl || campaign.mediaUrl, // Usa URL absoluta se disponível
                 campaign.chatwootToken
             );
         }

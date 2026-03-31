@@ -59,6 +59,7 @@ export class CampaignsService {
         chatwootToken: token,
         evolutionInstance: evolutionInstance?.trim() || 'default',
         mediaUrl: createCampaignDto.mediaUrl,
+        mediaPublicUrl: createCampaignDto.mediaPublicUrl, // URL absoluta para persistência
         mediaType: createCampaignDto.mediaType,
         status: CampaignStatus.PENDING,
         totalContacts: 0,
