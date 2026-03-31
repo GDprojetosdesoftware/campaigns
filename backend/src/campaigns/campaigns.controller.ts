@@ -163,9 +163,9 @@ export class CampaignsController {
     else if (file.mimetype.startsWith('video/')) type = 'video';
     else if (file.mimetype.startsWith('audio/')) type = 'audio';
 
-    // Return relative URL for frontend (will use proxy /api)
-    // and also include the public URL for external services (like Chatwoot)
-    const relativeUrl = `/api/uploads/${file.filename}`;
+    // Return relative URL: No painel usa /api/uploads (via proxy Next.js)
+    // Para serviços externos como Chatwoot, usa a URL pública absoluta /uploads
+    const relativeUrl = `/uploads/${file.filename}`;
     const publicUrl = this.buildPublicUrl(relativeUrl);
 
     return {

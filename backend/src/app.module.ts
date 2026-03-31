@@ -11,7 +11,7 @@ import { join } from 'path';
   imports: [
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
-      serveRoot: '/api/uploads',  // Serve em /api/uploads, não /uploads
+      serveRoot: '/uploads',  // Serve diretamente em /uploads (sem /api prefixo)
     }),
     ConfigModule.forRoot({
       isGlobal: true,
