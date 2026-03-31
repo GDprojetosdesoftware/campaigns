@@ -163,8 +163,7 @@ export class CampaignsController {
     else if (file.mimetype.startsWith('video/')) type = 'video';
     else if (file.mimetype.startsWith('audio/')) type = 'audio';
 
-    // The URL should be relative to the base URL or absolute
-    // For local dev, we assume /uploads/filename
+    // Return relative URL - will be converted to absolute in ChatwootService
     return {
       url: `/api/uploads/${file.filename}`,
       type: type,

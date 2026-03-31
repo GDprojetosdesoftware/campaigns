@@ -16,6 +16,7 @@ services:
       - EVOLUTION_API_TOKEN=${EVOLUTION_API_TOKEN}
       - EVOLUTION_INSTANCE_NAME=${EVOLUTION_INSTANCE_NAME}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - BACKEND_PUBLIC_URL=${BACKEND_PUBLIC_URL:-http://campaign-backend:3000}
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     depends_on:

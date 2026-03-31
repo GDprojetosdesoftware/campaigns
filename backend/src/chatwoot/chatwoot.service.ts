@@ -354,12 +354,21 @@ export class ChatwootService {
 
   async sendMediaWithAttachment(accountId: number, conversationId: number, content: string, fileUrl: string, token?: string) {
     try {
-      this.logger.log(`Sending media message to conversation ${conversationId} for account ${accountId}. URL: ${fileUrl}`);
+      // Convert relative URLs to absolute URLs so Chatwoot can download them
+      let absoluteUrl = fileUrl;
+      if (fileUrl && fileUrl.startsWith('/')) {
+        const backendUrl = this.configService.get<string>('BACKEND_PUBLIC_URL') || 
+                          process.env.BACKEND_PUBLIC_URL || 
+                          'http://campaign-backend:3000';
+        absoluteUrl = `${backendUrl}${fileUrl}`;
+      }
+      
+      this.logger.log(`Sending media message to conversation ${conversationId} for account ${accountId}. URL: ${absoluteUrl}`);
       // No Chatwoot, para enviar uma URL como anexo via API oficial sem FormData (upload),
       // a forma mais comum em campanhas é enviar o conteúdo + link, 
       // ou usar o campo attachments se o chatwoot suportar processar a URL.
       // Caso mais simples e robusto para campanhas de massa: 
-      const finalContent = content ? `${content}\n\n${fileUrl}` : fileUrl;
+      const finalContent = content ? `${content}\n\n${absoluteUrl}` : absoluteUrl;
       
       return this.sendMessage(accountId, conversationId, finalContent, token);
     } catch (error) {
