@@ -14,10 +14,15 @@ export class EvolutionService {
     }
     const apiToken = this.configService.get<string>('EVOLUTION_API_TOKEN');
 
+    if (!baseUrl) {
+      this.logger.warn('EVOLUTION_API_URL não configurada. Funcionalidades da Evolution API estarão desativadas.');
+      baseUrl = 'http://localhost';
+    }
+
     this.httpClient = axios.create({
       baseURL: baseUrl,
       headers: {
-        apikey: apiToken,
+        apikey: apiToken || 'none',
         'Content-Type': 'application/json',
       },
     });

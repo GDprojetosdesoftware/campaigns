@@ -165,7 +165,7 @@ export class CampaignsController {
 
     // Return relative URL for frontend (will use proxy /api)
     // and also include the public URL for external services (like Chatwoot)
-    const relativeUrl = `/uploads/${file.filename}`;
+    const relativeUrl = `/api/uploads/${file.filename}`;
     const publicUrl = this.buildPublicUrl(relativeUrl);
 
     return {

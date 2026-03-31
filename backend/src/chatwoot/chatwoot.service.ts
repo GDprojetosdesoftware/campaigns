@@ -373,6 +373,14 @@ export class ChatwootService {
         
         absoluteUrl = `${sanitizedBase}${fileUrl}`;
       }
+
+      // Trava de segurança: Se a URL for do nosso domínio de campanhas mas estiver sem o prefixo /api/
+      // nós o adicionamos automaticamente para que o Proxy do Frontend funcione.
+      const campaignDomain = this.configService.get<string>('CAMPAIGN_BACKEND_DOMAIN') || 'campaigns.ranoverchat.com.br';
+      if (absoluteUrl && absoluteUrl.includes(campaignDomain) && absoluteUrl.includes('/uploads/') && !absoluteUrl.includes('/api/uploads/')) {
+        this.logger.log(`[Safety Check] Aplicando prefixo /api ausente na URL: ${absoluteUrl}`);
+        absoluteUrl = absoluteUrl.replace('/uploads/', '/api/uploads/');
+      }
       // Se for URL sem protocolo (ex: campaigns.ranoverchat.com.br/api/...)
       else if (fileUrl && !fileUrl.startsWith('http')) {
         if (fileUrl.includes('localhost') || fileUrl.includes('127.0.0.1') || fileUrl.includes('campaign-backend')) {
