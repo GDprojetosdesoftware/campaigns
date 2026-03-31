@@ -189,7 +189,7 @@ services:
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD_CAMPAIGN:-postgres}@postgres-campaigns:5432/campanhas_db
       - CHATWOOT_API_URL=https://${CHATWOOT_DOMAIN:-localhost}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-5497c27f795da40188ba}@redis:6379/2
-      - BACKEND_PUBLIC_URL=${CAMPAIGN_BACKEND_DOMAIN}
+      - BACKEND_PUBLIC_URL=${CAMPAIGN_BACKEND_DOMAIN:-https://campaigns.${CAMPAIGN_DOMAIN}}
     depends_on:
       - postgres-campaigns
       - redis
