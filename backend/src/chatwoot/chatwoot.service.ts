@@ -386,16 +386,38 @@ export class ChatwootService {
       
       this.logger.log(`Sending media message to conversation ${conversationId} for account ${accountId}. URL: ${absoluteUrl}`);
       
-      // Estratégia simplificada: Enviar como mensagem com URL
-      // Chatwoot conseguirá fazer download e renderizar automaticamente se for imagem/vídeo
-      const finalContent = content 
-        ? `${content}\n\n${absoluteUrl}` 
-        : absoluteUrl;
+      // Detectar tipo de arquivo
+      const fileExtension = absoluteUrl.split('.').pop()?.toLowerCase() || 'file';
+      let fileType = 'file';
       
-      const response = await this.sendMessage(accountId, conversationId, finalContent, token);
+      if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension)) {
+        fileType = 'image';
+      } else if (['mp4', 'avi', 'mov', 'mkv', 'webm'].includes(fileExtension)) {
+        fileType = 'video';
+      } else if (['mp3', 'wav', 'ogg', 'm4a'].includes(fileExtension)) {
+        fileType = 'audio';
+      }
+      
+      // Enviar com attachments no formato do Chatwoot
+      const messagePayload: any = {
+        content: content || `[${fileType.toUpperCase()}]`,
+        message_type: 'outgoing',
+        attachments: [
+          {
+            file_url: absoluteUrl,
+            file_type: fileType,
+          }
+        ]
+      };
+      
+      const response = await this.httpClient.post(
+        `/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`,
+        messagePayload,
+        this.getRequestConfig(token)
+      );
       
       this.logger.log(`Media message sent successfully to conversation ${conversationId}`);
-      return response;
+      return response.data;
     } catch (error) {
       this.logger.error(`Error in sendMediaWithAttachment: ${error.message}`);
       throw error;
