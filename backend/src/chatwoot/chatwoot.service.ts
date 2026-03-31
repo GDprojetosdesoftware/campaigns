@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
-import FormData from 'form-data';
 
 @Injectable()
 export class ChatwootService {
@@ -387,36 +386,16 @@ export class ChatwootService {
       
       this.logger.log(`Sending media message to conversation ${conversationId} for account ${accountId}. URL: ${absoluteUrl}`);
       
-      // Try to download and upload as attachment to Chatwoot
-      try {
-        const mediaResponse = await axios.get(absoluteUrl, { responseType: 'arraybuffer' });
-        const mediaBuffer = Buffer.from(mediaResponse.data, 'binary');
-        const mediaTypeName = this.getMediaTypeName(absoluteUrl);
-        
-        // Send message with attachment using FormData
-        const formData = new FormData();
-        formData.append('content', content || 'Arquivo enviado');
-        formData.append('message_type', 'outgoing');
-        formData.append('attachments', new Blob([mediaBuffer], { type: mediaResponse.headers['content-type'] }), mediaTypeName);
-        
-        const config: any = this.getRequestConfig(token, {
-          headers: formData.getHeaders ? formData.getHeaders() : {},
-        });
-        
-        const response = await this.httpClient.post(
-          `/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`,
-          formData,
-          config
-        );
-        
-        this.logger.log(`Media attachment sent successfully to conversation ${conversationId}`);
-        return response.data;
-      } catch (attachmentError) {
-        // Fallback: enviar como texto + link se o attachment falhar
-        this.logger.warn(`Failed to send as attachment (${attachmentError.message}), falling back to text + link`);
-        const finalContent = content ? `${content}\n\n${absoluteUrl}` : absoluteUrl;
-        return this.sendMessage(accountId, conversationId, finalContent, token);
-      }
+      // Estratégia simplificada: Enviar como mensagem com URL
+      // Chatwoot conseguirá fazer download e renderizar automaticamente se for imagem/vídeo
+      const finalContent = content 
+        ? `${content}\n\n${absoluteUrl}` 
+        : absoluteUrl;
+      
+      const response = await this.sendMessage(accountId, conversationId, finalContent, token);
+      
+      this.logger.log(`Media message sent successfully to conversation ${conversationId}`);
+      return response;
     } catch (error) {
       this.logger.error(`Error in sendMediaWithAttachment: ${error.message}`);
       throw error;
