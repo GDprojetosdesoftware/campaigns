@@ -59,6 +59,17 @@ export default function NewCampaignPage() {
     const [mediaPreview, setMediaPreview] = useState<string | null>(null);
     const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
+    // Helper para construir URL de mídia corretamente
+    const getMediaUrl = (url: string): string => {
+        if (!url) return '';
+        // Se já começa com /api/, usar como está (já é relativa ao proxy)
+        if (url.startsWith('/api/')) return url;
+        // Se começa com /, adicionar /api na frente
+        if (url.startsWith('/')) return `/api${url}`;
+        // Se for URL absoluta, usar como está
+        return url;
+    };
+
     const [inboxes, setInboxes] = useState<any[]>([]);
     const [instances, setInstances] = useState<any[]>([]);
     const [labels, setLabels] = useState<any[]>([]);
@@ -445,10 +456,10 @@ export default function NewCampaignPage() {
                                             {mediaPreview && (
                                                 <div className="mb-6 rounded-[2rem] overflow-hidden border border-gray-100 dark:border-gray-800 shadow-lg bg-black/5">
                                                     {formData.mediaType === 'image' && (
-                                                        <img src={mediaPreview.startsWith('/') ? `${API_BASE_URL}${mediaPreview}` : mediaPreview} className="w-full h-auto max-h-[250px] object-contain" alt="Preview" />
+                                                        <img src={getMediaUrl(mediaPreview)} className="w-full h-auto max-h-[250px] object-contain" alt="Preview" />
                                                     )}
                                                     {formData.mediaType === 'video' && (
-                                                        <video src={mediaPreview.startsWith('/') ? `${API_BASE_URL}${mediaPreview}` : mediaPreview} className="w-full h-auto" controls />
+                                                        <video src={getMediaUrl(mediaPreview)} className="w-full h-auto" controls />
                                                     )}
                                                     {(formData.mediaType === 'document' || formData.mediaType === 'audio') && (
                                                         <div className="p-6 flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50">

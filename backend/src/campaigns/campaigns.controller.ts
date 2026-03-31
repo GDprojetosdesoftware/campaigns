@@ -163,12 +163,22 @@ export class CampaignsController {
     else if (file.mimetype.startsWith('video/')) type = 'video';
     else if (file.mimetype.startsWith('audio/')) type = 'audio';
 
-    // Return relative URL - will be converted to absolute in ChatwootService
+    // Return relative URL for frontend (will use proxy /api)
+    // and also include the public URL for external services (like Chatwoot)
+    const relativeUrl = `/api/uploads/${file.filename}`;
+    const publicUrl = this.buildPublicUrl(relativeUrl);
+
     return {
-      url: `/api/uploads/${file.filename}`,
+      url: relativeUrl,
+      publicUrl: publicUrl,
       type: type,
       filename: file.originalname
     };
+  }
+
+  private buildPublicUrl(relativeUrl: string): string {
+    const backendPublicUrl = process.env.BACKEND_PUBLIC_URL || 'http://campaign-backend:3000';
+    return `${backendPublicUrl}${relativeUrl}`;
   }
 
   @Get()
