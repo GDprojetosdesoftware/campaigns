@@ -51,12 +51,15 @@ export class CampaignProcessor extends WorkerHost {
       
       if (campaign.mediaUrl) {
         // Envio com Mídia
+        const mediaUrlToUse = campaign.mediaPublicUrl || campaign.mediaUrl;
+        this.logger.log(`Media URL for contact ${contact.id}: ${mediaUrlToUse} (Public: ${!!campaign.mediaPublicUrl})`);
+        
         if (campaign.evolutionInstance && campaign.evolutionInstance !== 'default' && campaign.evolutionInstance !== 'none') {
             this.logger.log(`Sending dynamic media (${campaign.mediaType}) via Evolution (${campaign.evolutionInstance}) for contact ${contact.id} (${phone}).`);
             await this.evolutionService.sendMedia(
                 campaign.evolutionInstance,
                 phone,
-                campaign.mediaPublicUrl || campaign.mediaUrl, // Usa URL absoluta se disponível
+                mediaUrlToUse, // Usa URL absoluta se disponível
                 campaign.mediaType || 'image',
                 personalizedMessage
             );
@@ -67,7 +70,7 @@ export class CampaignProcessor extends WorkerHost {
                 campaign.accountId,
                 conversation.id,
                 personalizedMessage,
-                campaign.mediaPublicUrl || campaign.mediaUrl, // Usa URL absoluta se disponível
+                mediaUrlToUse, // Usa URL absoluta se disponível
                 campaign.chatwootToken
             );
         }

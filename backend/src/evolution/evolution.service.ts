@@ -113,15 +113,28 @@ export class EvolutionService {
       const formattedNumber = number.replace(/\D/g, '');
       this.logger.log(`Sending ${mediaType} to ${formattedNumber} via instance ${instanceName}`);
       
-      // Se mediaUrl começa com /, é um arquivo local. Prefixa com APP_URL
+      // Processa a URL de mídia
       let finalMediaUrl = mediaUrl;
-      const baseUrl = this.configService.get<string>('APP_URL') || '';
-      const host = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
       
+      // Se a URL for relativa (começa com /), precisa de prefixação
       if (mediaUrl.startsWith('/')) {
+        const baseUrl = this.configService.get<string>('APP_URL') || 
+                        this.configService.get<string>('BACKEND_PUBLIC_URL') ||
+                        process.env.APP_URL ||
+                        process.env.BACKEND_PUBLIC_URL ||
+                        'http://campaign-backend:3000';
+        const host = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
         finalMediaUrl = `${host}${mediaUrl}`;
-      } else if (!mediaUrl.startsWith('http')) {
-        // Garantia de fall-back para caminhos relativos sem /
+      }
+      // Se for URL absoluta, usa como está
+      // Se for relativa sem /, trata como relativa para o APP_URL
+      else if (!mediaUrl.startsWith('http')) {
+        const baseUrl = this.configService.get<string>('APP_URL') || 
+                        this.configService.get<string>('BACKEND_PUBLIC_URL') ||
+                        process.env.APP_URL ||
+                        process.env.BACKEND_PUBLIC_URL ||
+                        'http://campaign-backend:3000';
+        const host = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
         finalMediaUrl = `${host}/${mediaUrl}`;
       }
 
@@ -136,7 +149,11 @@ export class EvolutionService {
         fileName: mediaUrl.split('/').pop() || 'file'
       };
 
-      this.logger.debug(`Payload for ${instanceName}: ${JSON.stringify(payload)}`);
+      this.logger.debug(`Sending Media to Evolution for ${instanceName}:`);
+      this.logger.debug(`  Number: ${formattedNumber}`);
+      this.logger.debug(`  Type: ${mediaTypeLower}`);
+      this.logger.debug(`  URL: ${finalMediaUrl}`);
+      this.logger.debug(`  Caption: ${caption || '(none)'}`);
 
       const response = await this.httpClient.post(
         `/message/sendMedia/${instanceName}`,
@@ -151,6 +168,7 @@ export class EvolutionService {
       this.logger.error(
         `Error sending media via Evolution (${errorStatus}): ${JSON.stringify(errorData || error.message)}`
       );
+      throw error;
     }
   }
 }
