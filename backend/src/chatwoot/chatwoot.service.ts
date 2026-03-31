@@ -357,60 +357,72 @@ export class ChatwootService {
       let absoluteUrl = fileUrl;
       
       if (fileUrl && fileUrl.startsWith('/')) {
-        // É uma URL relativa
         const backendUrl = this.configService.get<string>('BACKEND_PUBLIC_URL') || 
                           process.env.BACKEND_PUBLIC_URL || 
                           'http://campaign-backend:3000';
         let sanitizedBase = backendUrl;
-        
-        // Garantir protocolo
         if (!sanitizedBase.startsWith('http://') && !sanitizedBase.startsWith('https://')) {
           sanitizedBase = `https://${sanitizedBase}`;
         }
-        if (sanitizedBase.endsWith('/')) {
-          sanitizedBase = sanitizedBase.slice(0, -1);
-        }
-        
+        if (sanitizedBase.endsWith('/')) sanitizedBase = sanitizedBase.slice(0, -1);
         absoluteUrl = `${sanitizedBase}${fileUrl}`;
       }
 
-      // Trava de segurança: Se a URL for do nosso domínio de campanhas mas estiver sem o prefixo /api/
-      // nós o adicionamos automaticamente para que o Proxy do Frontend funcione.
-      const campaignDomain = this.configService.get<string>('CAMPAIGN_BACKEND_DOMAIN') || 'campaigns.ranoverchat.com.br';
-      if (absoluteUrl && absoluteUrl.includes(campaignDomain) && absoluteUrl.includes('/uploads/') && !absoluteUrl.includes('/api/uploads/')) {
-        this.logger.log(`[Safety Check] Aplicando prefixo /api ausente na URL: ${absoluteUrl}`);
-        absoluteUrl = absoluteUrl.replace('/uploads/', '/api/uploads/');
-      }
-      // Se for URL sem protocolo (ex: campaigns.ranoverchat.com.br/api/...)
-      else if (fileUrl && !fileUrl.startsWith('http')) {
-        if (fileUrl.includes('localhost') || fileUrl.includes('127.0.0.1') || fileUrl.includes('campaign-backend')) {
-          absoluteUrl = `http://${fileUrl}`;
-        } else {
-          // Assumir HTTPS para domínios públicos
-          absoluteUrl = `https://${fileUrl}`;
-        }
-      }
-      
       this.logger.log(`Sending media message to conversation ${conversationId} for account ${accountId}. URL: ${absoluteUrl}`);
-      
-      // Strategy: Send message with URL only - Chatwoot will auto-unfurl images
-      // This is the most compatible approach that works across Chatwoot versions
-      const messageContent = content 
-        ? `${content}\n\n${absoluteUrl}` 
-        : absoluteUrl;
-      
-      this.logger.log(`[MEDIA] Sending message with media URL to conversation ${conversationId}: ${messageContent.substring(0, 100)}...`);
-      
-      const response = await this.sendMessage(accountId, conversationId, messageContent, token);
-      
-      this.logger.log(`Media message sent successfully to conversation ${conversationId}`);
-      return response;
+
+      // Strategy 1: Download the file and send as a real multipart attachment
+      // This makes Chatwoot send it as an actual image/media in WhatsApp (not just a link)
+      try {
+        this.logger.log(`[MEDIA] Attempting to download and send as real attachment: ${absoluteUrl}`);
+        
+        const axios = require('axios');
+        const FormData = require('form-data');
+
+        // Download the file from our backend
+        const fileResponse = await axios.get(absoluteUrl, { responseType: 'arraybuffer', timeout: 15000 });
+        const fileBuffer = Buffer.from(fileResponse.data);
+        
+        // Detect content type
+        const contentType = fileResponse.headers['content-type'] || 'image/jpeg';
+        const filename = absoluteUrl.split('/').pop() || 'image.jpg';
+
+        // Build multipart form
+        const form = new FormData();
+        form.append('content', content || '');
+        form.append('message_type', 'outgoing');
+        form.append('content_type', 'input_select');
+        form.append('attachments[]', fileBuffer, {
+          filename,
+          contentType,
+        });
+
+        const authConfig = this.getRequestConfig(token);
+        const authHeaders = authConfig.headers || {};
+        const resp = await this.httpClient.post(
+          `/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`,
+          form,
+          { headers: { ...form.getHeaders(), ...authHeaders } }
+        );
+
+        this.logger.log(`Media message (attachment) sent successfully to conversation ${conversationId}`);
+        return resp.data;
+
+      } catch (attachmentError) {
+        // Strategy 2: Fallback — send content + URL as text
+        this.logger.warn(`[MEDIA] Attachment upload failed (${attachmentError.message}), falling back to text URL.`);
+        const messageContent = content ? `${content}\n\n${absoluteUrl}` : absoluteUrl;
+        const response = await this.sendMessage(accountId, conversationId, messageContent, token);
+        this.logger.log(`Media message sent (text fallback) to conversation ${conversationId}`);
+        return response;
+      }
+
     } catch (error) {
       const errorDetail = error.response?.data ? JSON.stringify(error.response.data) : error.message;
       this.logger.error(`Error in sendMediaWithAttachment: ${errorDetail}`);
       throw error;
     }
   }
+
 
   private getMediaTypeName(url: string): string {
     const extension = url.split('.').pop()?.toLowerCase() || 'file';
