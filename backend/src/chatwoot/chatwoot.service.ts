@@ -260,9 +260,8 @@ export class ChatwootService {
       );
       
       const conversations = existing.data?.payload || [];
-      // Filtra por conversas na mesma caixa de entrada que NÃO estejam resolvidas (pendentes ou abertas)
       const activeConversation = conversations.find(
-        (c: any) => c.inbox_id === inboxId && c.status !== 'resolved'
+        (c: any) => c.inbox_id === inboxId
       );
 
       if (activeConversation) {
@@ -386,40 +385,21 @@ export class ChatwootService {
       
       this.logger.log(`Sending media message to conversation ${conversationId} for account ${accountId}. URL: ${absoluteUrl}`);
       
-      // Detectar tipo de arquivo
-      const fileExtension = absoluteUrl.split('.').pop()?.toLowerCase() || 'file';
-      let fileType = 'file';
+      // Strategy: Send message with URL only - Chatwoot will auto-unfurl images
+      // This is the most compatible approach that works across Chatwoot versions
+      const messageContent = content 
+        ? `${content}\n\n${absoluteUrl}` 
+        : absoluteUrl;
       
-      if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension)) {
-        fileType = 'image';
-      } else if (['mp4', 'avi', 'mov', 'mkv', 'webm'].includes(fileExtension)) {
-        fileType = 'video';
-      } else if (['mp3', 'wav', 'ogg', 'm4a'].includes(fileExtension)) {
-        fileType = 'audio';
-      }
+      this.logger.log(`[MEDIA] Sending message with media URL to conversation ${conversationId}: ${messageContent.substring(0, 100)}...`);
       
-      // Enviar com attachments no formato do Chatwoot
-      const messagePayload: any = {
-        content: content || `[${fileType.toUpperCase()}]`,
-        message_type: 'outgoing',
-        attachments: [
-          {
-            file_url: absoluteUrl,
-            file_type: fileType,
-          }
-        ]
-      };
-      
-      const response = await this.httpClient.post(
-        `/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`,
-        messagePayload,
-        this.getRequestConfig(token)
-      );
+      const response = await this.sendMessage(accountId, conversationId, messageContent, token);
       
       this.logger.log(`Media message sent successfully to conversation ${conversationId}`);
-      return response.data;
+      return response;
     } catch (error) {
-      this.logger.error(`Error in sendMediaWithAttachment: ${error.message}`);
+      const errorDetail = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+      this.logger.error(`Error in sendMediaWithAttachment: ${errorDetail}`);
       throw error;
     }
   }

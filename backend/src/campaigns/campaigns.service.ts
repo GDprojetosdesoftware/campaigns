@@ -207,6 +207,7 @@ export class CampaignsService {
     if (updateDto.inboxId !== undefined) campaign.inboxId = Number(updateDto.inboxId);
     if (updateDto.evolutionInstance !== undefined) campaign.evolutionInstance = updateDto.evolutionInstance?.trim();
     if (updateDto.mediaUrl !== undefined) campaign.mediaUrl = updateDto.mediaUrl;
+    if (updateDto.mediaPublicUrl !== undefined) campaign.mediaPublicUrl = updateDto.mediaPublicUrl;
     if (updateDto.mediaType !== undefined) campaign.mediaType = updateDto.mediaType;
     if (updateDto.scheduledAt !== undefined) campaign.scheduledAt = updateDto.scheduledAt ? new Date(updateDto.scheduledAt) : null;
 

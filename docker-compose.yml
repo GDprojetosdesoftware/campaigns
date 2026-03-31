@@ -16,9 +16,11 @@ services:
       - EVOLUTION_API_TOKEN=${EVOLUTION_API_TOKEN}
       - EVOLUTION_INSTANCE_NAME=${EVOLUTION_INSTANCE_NAME}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-      - BACKEND_PUBLIC_URL=${CAMPAIGN_BACKEND_DOMAIN:-http://campaign-backend:3000}
+      - BACKEND_PUBLIC_URL=${BACKEND_PUBLIC_URL:-https://${CAMPAIGN_BACKEND_DOMAIN}}
     ports:
       - "${BACKEND_PORT:-3000}:3000"
+    volumes:
+      - ./backend/uploads:/app/uploads
     depends_on:
       - db
       - redis

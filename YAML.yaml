@@ -189,7 +189,9 @@ services:
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD_CAMPAIGN:-postgres}@postgres-campaigns:5432/campanhas_db
       - CHATWOOT_API_URL=https://${CHATWOOT_DOMAIN:-localhost}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-5497c27f795da40188ba}@redis:6379/2
-      - BACKEND_PUBLIC_URL=${CAMPAIGN_BACKEND_DOMAIN:-https://campaigns.${CAMPAIGN_DOMAIN}}
+      - BACKEND_PUBLIC_URL=${BACKEND_PUBLIC_URL:-https://${CAMPAIGN_BACKEND_DOMAIN}}
+    volumes:
+      - campaigns-uploads:/app/uploads
     depends_on:
       - postgres-campaigns
       - redis
@@ -226,6 +228,8 @@ volumes:
     name: ${INSTANCE_NAME}_kanbancw_uploads
   campaigns-postgres:
     name: ${INSTANCE_NAME}_campaigns_postgres
+  campaigns-uploads:
+    name: ${INSTANCE_NAME}_campaigns_uploads
 
 
 networks:
