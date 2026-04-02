@@ -390,7 +390,6 @@ export class ChatwootService {
         const form = new FormData();
         form.append('content', content || '');
         form.append('message_type', 'outgoing');
-        form.append('content_type', 'input_select');
         form.append('attachments[]', fileBuffer, {
           filename,
           contentType,
@@ -409,7 +408,10 @@ export class ChatwootService {
 
       } catch (attachmentError) {
         // Strategy 2: Fallback — send content + URL as text
-        this.logger.warn(`[MEDIA] Attachment upload failed (${attachmentError.message}), falling back to text URL.`);
+        const attachmentErrorDetail = attachmentError.response?.data
+          ? JSON.stringify(attachmentError.response.data)
+          : attachmentError.message;
+        this.logger.warn(`[MEDIA] Attachment upload failed (status: ${attachmentError.response?.status}, detail: ${attachmentErrorDetail}), falling back to text URL.`);
         const messageContent = content ? `${content}\n\n${absoluteUrl}` : absoluteUrl;
         const response = await this.sendMessage(accountId, conversationId, messageContent, token);
         this.logger.log(`Media message sent (text fallback) to conversation ${conversationId}`);
