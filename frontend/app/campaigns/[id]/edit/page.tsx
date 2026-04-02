@@ -2,8 +2,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect } from "react";
-import { ArrowLeft, Send, Users, MessageSquare, Settings, CheckCircle2, ChevronRight, Smartphone } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { ArrowLeft, Send, Users, MessageSquare, Settings, CheckCircle2, ChevronRight, Smartphone, Image as ImageIcon, Video, Music, FileText, File, Trash2, Upload, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
@@ -13,22 +13,75 @@ export default function EditCampaignPage() {
     const router = useRouter();
     const params = useParams();
     const id = params?.id as string;
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
         name: "",
         message: "",
         inboxId: "",
-        instance: "",
         scheduledAt: "",
+        mediaUrl: "",
+        mediaPublicUrl: "",
+        mediaType: "",
     });
 
+    const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+    const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
+    // Helper para construir URL de mídia corretamente no preview
+    const getMediaUrl = (url: string): string => {
+        if (!url) return '';
+        if (url.startsWith('/api/')) return url;
+        if (url.startsWith('/')) return `/api${url}`;
+        return url;
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploadingMedia(true);
+        try {
+            const formDataUpload = new FormData();
+            formDataUpload.append('file', file);
+
+            const response = await apiFetch('/campaigns/upload', {
+                method: 'POST',
+                body: formDataUpload,
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setFormData(prev => ({
+                    ...prev,
+                    mediaUrl: data.url,
+                    mediaPublicUrl: data.publicUrl,
+                    mediaType: data.type,
+                }));
+                setMediaPreview(data.url);
+            } else {
+                alert("Erro ao subir arquivo.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Erro de conexão ao subir arquivo.");
+        } finally {
+            setIsUploadingMedia(false);
+            // Reset file input so same file can be re-selected
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const handleRemoveMedia = () => {
+        setFormData(prev => ({ ...prev, mediaUrl: '', mediaPublicUrl: '', mediaType: '' }));
+        setMediaPreview(null);
+    };
+
     const [inboxes, setInboxes] = useState<any[]>([]);
-    const [instances, setInstances] = useState<any[]>([]);
     const [labels, setLabels] = useState<any[]>([]);
     const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
     const [isLoadingInboxes, setIsLoadingInboxes] = useState(false);
-    const [isLoadingInstances, setIsLoadingInstances] = useState(false);
     const [isLoadingLabels, setIsLoadingLabels] = useState(false);
     const [isLoadingCampaign, setIsLoadingCampaign] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,10 +90,9 @@ export default function EditCampaignPage() {
     useEffect(() => {
         const fetchAll = async () => {
             try {
-                const [campRes, inboxRes, instanceRes, labelRes] = await Promise.all([
+                const [campRes, inboxRes, labelRes] = await Promise.all([
                     apiFetch(`/campaigns/${id}`),
                     apiFetch('/campaigns/inboxes'),
-                    apiFetch('/campaigns/instances'),
                     apiFetch('/campaigns/labels'),
                 ]);
 
@@ -50,21 +102,25 @@ export default function EditCampaignPage() {
                         name: camp.name || "",
                         message: camp.message || "",
                         inboxId: camp.inboxId?.toString() || "",
-                        instance: camp.evolutionInstance || "",
                         scheduledAt: camp.scheduledAt ? new Date(camp.scheduledAt).toISOString().slice(0, 16) : "",
+                        mediaUrl: camp.mediaUrl || "",
+                        mediaPublicUrl: camp.mediaPublicUrl || "",
+                        mediaType: camp.mediaType || "",
                     });
+                    // Usa mediaPublicUrl se disponível, senão mediaUrl para o preview
+                    if (camp.mediaPublicUrl || camp.mediaUrl) {
+                        setMediaPreview(camp.mediaPublicUrl || camp.mediaUrl);
+                    }
                     setSelectedLabels(Array.isArray(camp.filters) ? camp.filters : []);
                 }
 
                 if (inboxRes.ok) setInboxes(await inboxRes.json());
-                if (instanceRes.ok) setInstances(await instanceRes.json());
                 if (labelRes.ok) setLabels(await labelRes.json());
             } catch (err) {
                 setError('Não foi possível carregar os dados da campanha.');
             } finally {
                 setIsLoadingCampaign(false);
                 setIsLoadingInboxes(false);
-                setIsLoadingInstances(false);
                 setIsLoadingLabels(false);
             }
         };
@@ -91,8 +147,10 @@ export default function EditCampaignPage() {
                     message: formData.message,
                     filters: selectedLabels,
                     inboxId: formData.inboxId,
-                    evolutionInstance: formData.instance,
                     scheduledAt: formData.scheduledAt || null,
+                    mediaUrl: formData.mediaUrl || null,
+                    mediaPublicUrl: formData.mediaPublicUrl || null,
+                    mediaType: formData.mediaType || null,
                 }),
             });
 
@@ -176,6 +234,7 @@ export default function EditCampaignPage() {
                     )}
 
                     <AnimatePresence mode="wait">
+                        {/* ─── Step 1: Configuração ─── */}
                         {step === 1 && (
                             <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                                 <h2 className="text-2xl font-bold mb-8">Configuração Básica</h2>
@@ -205,22 +264,6 @@ export default function EditCampaignPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Instância Evolution</label>
-                                    <select
-                                        value={formData.instance}
-                                        onChange={e => setFormData(p => ({ ...p, instance: e.target.value }))}
-                                        className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl px-5 py-4 outline-none focus:border-blue-500/50 transition-all text-gray-900 dark:text-white"
-                                    >
-                                        <option value="">{isLoadingInstances ? 'Carregando...' : 'Selecionar Instância'}</option>
-                                        {instances.map((inst: any) => (
-                                            <option key={inst.instanceName || inst.id} value={inst.instanceName || inst.id}>
-                                                {inst.instanceName || inst.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
                                     <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
                                         Agendamento <span className="text-gray-400 font-normal">(opcional)</span>
                                     </label>
@@ -235,6 +278,7 @@ export default function EditCampaignPage() {
                             </motion.div>
                         )}
 
+                        {/* ─── Step 2: Audiência ─── */}
                         {step === 2 && (
                             <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                                 <h2 className="text-2xl font-bold mb-8">Audiência</h2>
@@ -280,59 +324,184 @@ export default function EditCampaignPage() {
                             </motion.div>
                         )}
 
+                        {/* ─── Step 3: Mensagem + Mídia ─── */}
                         {step === 3 && (
                             <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                                 <h2 className="text-2xl font-bold mb-8">Mensagem</h2>
+
+                                {/* Textarea de mensagem + botão de upload lado a lado */}
                                 <div>
                                     <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
                                         Conteúdo da Mensagem
                                     </label>
-                                    <textarea
-                                        value={formData.message}
-                                        onChange={e => setFormData(p => ({ ...p, message: e.target.value }))}
-                                        placeholder="Digite sua mensagem..."
-                                        rows={10}
-                                        className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl px-5 py-4 outline-none focus:border-blue-500/50 transition-all text-gray-900 dark:text-white placeholder-gray-400 font-mono text-sm resize-y"
-                                    />
+                                    <div className="flex gap-2 items-start">
+                                        <textarea
+                                            value={formData.message}
+                                            onChange={e => setFormData(p => ({ ...p, message: e.target.value }))}
+                                            placeholder="Digite sua mensagem..."
+                                            rows={7}
+                                            className="flex-1 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl px-5 py-4 outline-none focus:border-blue-500/50 transition-all text-gray-900 dark:text-white placeholder-gray-400 font-mono text-sm resize-y"
+                                        />
+                                        {/* Botões de mídia */}
+                                        <div className="flex flex-col gap-2 pt-1">
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                onChange={handleFileChange}
+                                                className="hidden"
+                                                accept="image/*,video/*,audio/*,application/pdf,.doc,.docx"
+                                            />
+                                            <button
+                                                type="button"
+                                                disabled={isUploadingMedia}
+                                                onClick={() => fileInputRef.current?.click()}
+                                                title={formData.mediaUrl ? "Trocar mídia" : "Adicionar mídia"}
+                                                className={`w-12 h-12 flex items-center justify-center rounded-2xl border transition-all ${
+                                                    formData.mediaUrl
+                                                        ? "bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400"
+                                                        : "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-500 hover:border-blue-400 hover:text-blue-600"
+                                                } ${isUploadingMedia ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                            >
+                                                {isUploadingMedia ? (
+                                                    <Loader2 className="animate-spin" size={20} />
+                                                ) : formData.mediaUrl ? (
+                                                    <CheckCircle2 size={20} />
+                                                ) : (
+                                                    <Upload size={20} />
+                                                )}
+                                            </button>
+
+                                            {formData.mediaUrl && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleRemoveMedia}
+                                                    title="Remover mídia"
+                                                    className="w-12 h-12 flex items-center justify-center bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 rounded-2xl border border-red-100 dark:border-red-800/50 hover:bg-red-500 hover:text-white transition-all"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
                                     <div className="flex justify-between text-xs text-gray-500 mt-2">
                                         <span>Suporte a emojis e formatação WhatsApp (*bold*, _italics_)</span>
                                         <span>{formData.message.length} caracteres</span>
                                     </div>
                                 </div>
 
-                                {/* Preview Card */}
-                                {formData.message && (
+                                {/* Preview da mídia atual */}
+                                {mediaPreview && (
+                                    <div className="rounded-2xl overflow-hidden border border-gray-100 dark:border-white/10 shadow-md bg-black/5 dark:bg-white/5">
+                                        {formData.mediaType === 'image' && (
+                                            <img
+                                                src={getMediaUrl(mediaPreview)}
+                                                className="w-full h-auto max-h-[280px] object-contain"
+                                                alt="Preview da mídia"
+                                            />
+                                        )}
+                                        {formData.mediaType === 'video' && (
+                                            <video src={getMediaUrl(mediaPreview)} className="w-full h-auto" controls />
+                                        )}
+                                        {(formData.mediaType === 'audio') && (
+                                            <div className="p-5 flex items-center gap-3 bg-gray-50 dark:bg-white/5">
+                                                <Music className="text-blue-600 flex-shrink-0" size={24} />
+                                                <div>
+                                                    <p className="text-sm font-bold">Áudio selecionado</p>
+                                                    <p className="text-xs text-gray-500 uppercase tracking-wide">audio</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {(formData.mediaType === 'document') && (
+                                            <div className="p-5 flex items-center gap-3 bg-gray-50 dark:bg-white/5">
+                                                <FileText className="text-blue-600 flex-shrink-0" size={24} />
+                                                <div>
+                                                    <p className="text-sm font-bold">Documento selecionado</p>
+                                                    <p className="text-xs text-gray-500 uppercase tracking-wide">documento</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {/* Tipo desconhecido mas com URL */}
+                                        {!['image','video','audio','document'].includes(formData.mediaType) && mediaPreview && (
+                                            <div className="p-5 flex items-center gap-3 bg-gray-50 dark:bg-white/5">
+                                                <File className="text-blue-600 flex-shrink-0" size={24} />
+                                                <div>
+                                                    <p className="text-sm font-bold">Arquivo selecionado</p>
+                                                    <p className="text-xs text-gray-500 uppercase tracking-wide truncate max-w-xs">{mediaPreview.split('/').pop()}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className="px-4 py-2 bg-gray-50 dark:bg-white/5 border-t border-gray-100 dark:border-white/5 flex items-center justify-between">
+                                            <span className="text-xs text-gray-500 truncate max-w-[80%]">{mediaPreview.split('/').pop()}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="text-xs text-blue-600 dark:text-blue-400 font-semibold hover:underline"
+                                            >
+                                                Trocar
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Preview da mensagem */}
+                                {(formData.message || mediaPreview) && (
                                     <div className="p-5 bg-gray-100 dark:bg-[#1c1c1f] rounded-3xl">
                                         <div className="flex items-center gap-2 mb-4 text-sm font-semibold text-gray-500">
                                             <Smartphone size={16} />
                                             Preview
                                         </div>
-                                        <div className="max-w-xs bg-green-500 text-white rounded-2xl rounded-tl-sm px-4 py-3 text-sm shadow-md">
-                                            <p className="whitespace-pre-wrap">{formData.message}</p>
+                                        <div className="max-w-xs bg-green-500 text-white rounded-2xl rounded-tl-sm overflow-hidden shadow-md">
+                                            {formData.mediaType === 'image' && mediaPreview && (
+                                                <img src={getMediaUrl(mediaPreview)} className="w-full h-auto max-h-[180px] object-cover" alt="Preview" />
+                                            )}
+                                            {formData.message && (
+                                                <p className="whitespace-pre-wrap px-4 py-3 text-sm">{formData.message}</p>
+                                            )}
                                         </div>
                                     </div>
                                 )}
                             </motion.div>
                         )}
 
+                        {/* ─── Step 4: Revisão ─── */}
                         {step === 4 && (
                             <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                                 <h2 className="text-2xl font-bold mb-8">Confirmar Alterações</h2>
                                 <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-white/5 rounded-3xl p-8 space-y-5">
                                     <ReviewRow label="Nome" value={formData.name} />
                                     <ReviewRow label="Inbox" value={inboxes.find(i => i.id?.toString() === formData.inboxId)?.name || formData.inboxId || '—'} />
-                                    <ReviewRow label="Instância" value={formData.instance || '—'} />
                                     <ReviewRow label="Etiquetas" value={selectedLabels.length > 0 ? selectedLabels.join(', ') : 'Todos os contatos'} />
                                     <ReviewRow label="Agendamento" value={formData.scheduledAt ? new Date(formData.scheduledAt).toLocaleString('pt-BR') : 'Manual'} />
+
+                                    {/* Preview de mídia na revisão */}
+                                    {mediaPreview && (
+                                        <div className="pt-4 border-t border-gray-100 dark:border-white/5">
+                                            <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-3">Mídia</p>
+                                            {formData.mediaType === 'image' ? (
+                                                <img
+                                                    src={getMediaUrl(mediaPreview)}
+                                                    className="rounded-2xl max-h-[200px] object-contain border border-gray-100 dark:border-white/10"
+                                                    alt="Preview"
+                                                />
+                                            ) : (
+                                                <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-white/5 rounded-2xl p-4">
+                                                    {formData.mediaType} — {mediaPreview.split('/').pop()}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <div className="pt-4 border-t border-gray-100 dark:border-white/5">
                                         <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-3">Mensagem</p>
-                                        <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap bg-gray-50 dark:bg-white/5 rounded-2xl p-4">{formData.message}</p>
+                                        <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap bg-gray-50 dark:bg-white/5 rounded-2xl p-4">
+                                            {formData.message || <span className="italic text-gray-400">(sem legenda)</span>}
+                                        </p>
                                     </div>
                                 </div>
 
                                 <button
                                     onClick={handleUpdate}
-                                    disabled={isSubmitting || !formData.name || !formData.message || !formData.inboxId || !formData.instance}
+                                    disabled={isSubmitting || !formData.name || !formData.inboxId || (!formData.message && !formData.mediaUrl)}
                                     className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-600/20"
                                 >
                                     {isSubmitting ? (
