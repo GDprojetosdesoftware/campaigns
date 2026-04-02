@@ -299,16 +299,34 @@ export class ChatwootService {
   async updateKanbanStatus(accountId: number, conversationId: number, statusLabel: string, token?: string) {
     try {
       this.logger.log(`Updating Kanban status for conversation ${conversationId} to ${statusLabel}`);
-      
+
+      // 1. Busca as etiquetas atuais da conversa para não sobrescrever as existentes
+      let existingLabels: string[] = [];
+      try {
+        const labelsRes = await this.httpClient.get(
+          `/api/v1/accounts/${accountId}/conversations/${conversationId}/labels`,
+          this.getRequestConfig(token)
+        );
+        existingLabels = labelsRes.data?.payload || [];
+      } catch (fetchErr) {
+        this.logger.warn(`Could not fetch existing labels for conversation ${conversationId}: ${fetchErr.message}`);
+      }
+
+      // 2. Combina as etiquetas existentes com a nova (sem duplicatas)
+      const mergedLabels = Array.from(new Set([...existingLabels, statusLabel]));
+      this.logger.log(`Labels for conversation ${conversationId}: [${existingLabels.join(', ')}] + "${statusLabel}" → [${mergedLabels.join(', ')}]`);
+
+      // 3. Envia a lista completa
       await this.httpClient.post(
         `/api/v1/accounts/${accountId}/conversations/${conversationId}/labels`,
-        { labels: [statusLabel] },
+        { labels: mergedLabels },
         this.getRequestConfig(token)
       );
     } catch (error) {
       this.logger.error(`Error updating Kanban status: ${error.message}`);
     }
   }
+
 
   async getInboxes(accountId: number, token?: string) {
     try {
