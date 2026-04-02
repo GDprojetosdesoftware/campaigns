@@ -204,12 +204,26 @@ export class CampaignsService {
     if (updateDto.name !== undefined) campaign.name = updateDto.name;
     if (updateDto.message !== undefined) campaign.message = updateDto.message;
     if (updateDto.filters !== undefined) campaign.filters = updateDto.filters;
-    if (updateDto.inboxId !== undefined) campaign.inboxId = Number(updateDto.inboxId);
     if (updateDto.evolutionInstance !== undefined) campaign.evolutionInstance = updateDto.evolutionInstance?.trim();
     if (updateDto.mediaUrl !== undefined) campaign.mediaUrl = updateDto.mediaUrl;
     if (updateDto.mediaPublicUrl !== undefined) campaign.mediaPublicUrl = updateDto.mediaPublicUrl;
     if (updateDto.mediaType !== undefined) campaign.mediaType = updateDto.mediaType;
     if (updateDto.scheduledAt !== undefined) campaign.scheduledAt = updateDto.scheduledAt ? new Date(updateDto.scheduledAt) : null;
+
+    // Se o inboxId mudou, atualiza também o inboxName buscando o nome real no Chatwoot
+    if (updateDto.inboxId !== undefined) {
+      const newInboxId = Number(updateDto.inboxId);
+      campaign.inboxId = newInboxId;
+      try {
+        const inboxes = await this.chatwootService.getInboxes(campaign.accountId, campaign.chatwootToken);
+        const inbox = inboxes.find((i: any) => i.id === newInboxId);
+        if (inbox) {
+          campaign.inboxName = inbox.name;
+        }
+      } catch (err) {
+        this.logger.warn(`Could not fetch inbox name for inboxId ${newInboxId} during update: ${err.message}`);
+      }
+    }
 
     // Reset to pending when edited so user must restart
     campaign.status = CampaignStatus.PENDING;
@@ -219,6 +233,7 @@ export class CampaignsService {
 
     return this.campaignRepository.save(campaign);
   }
+
 
   async remove(id: number, accountId?: number) {
     const aid = accountId || this.configService.get<number>('CHATWOOT_ACCOUNT_ID');
